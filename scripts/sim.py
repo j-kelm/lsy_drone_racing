@@ -46,7 +46,7 @@ def simulate(
     Returns:
         A list of episode times.
     """
-    # Load configuration and check if firmare should be used.
+    # Load configuration and check if firmware should be used.
     config = load_config(Path(config))
     config.sim.gui = gui
 
@@ -67,8 +67,8 @@ def simulate(
         action = np.zeros(4)
         reward = 0
         obs, info = env.reset()
-        info["ctrl_timestep"] = config.env.freq
-        info["ctrl_freq"] = 1 / config.env.freq
+        info["ctrl_timestep"] = 1 / config.env.freq
+        info["ctrl_freq"] = config.env.freq
         # obs = [x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r]
         ctrl = ctrl_class(obs, info)
         gui_timer = p.addUserDebugText("", textPosition=[0, 0, 1], physicsClientId=env.pyb_client)
@@ -86,6 +86,9 @@ def simulate(
                 replaceItemUniqueId=gui_timer,
                 physicsClientId=env.pyb_client,
             )
+
+            # Give additional info to the agent
+            info['step'] = i
 
             # Get the observation from the motion capture system
             # Compute control input.

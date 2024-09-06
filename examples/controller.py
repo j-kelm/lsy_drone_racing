@@ -31,10 +31,16 @@ from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
-from stable_baselines3 import PPO
+
+from munch import munchify
+import yaml
 
 from lsy_drone_racing.controller import BaseController
 from lsy_drone_racing.wrapper import ObsWrapper
+
+from examples.planner import Planner, FilePlanner, LinearPlanner, PointPlanner
+from examples.mpc_controller import MPC
+from examples.model import Model
 
 
 class Controller(BaseController):
@@ -54,8 +60,39 @@ class Controller(BaseController):
             initial_info: Additional environment information from the reset.
         """
         super().__init__(initial_obs, initial_info)
-        self.policy = PPO.load(Path(__file__).resolve().parents[1] / "models/ppo/model.zip")
-        self._last_action = np.zeros(3)
+
+        # Save environment and control parameters.
+        self.CTRL_TIMESTEP = initial_info["ctrl_timestep"]
+        self.CTRL_FREQ = initial_info["ctrl_freq"]
+        self.initial_obs = initial_obs
+        self.initial_info = initial_info
+
+        self.episode_reset()
+
+        path = "config/mpc.yaml"
+        with open(path, "r") as file:
+            config = munchify(yaml.safe_load(file))
+
+        # initialize planner
+        self.planner = LinearPlanner(initial_info=initial_info, CTRL_FREQ=self.CTRL_FREQ)
+        self.ref = self.planner.plan(initial_obs=self.initial_obs,
+                                     gates=None,
+                                     speed=1.0)
+
+        # initialize mpc controller
+        self.model = Model(info=None)
+        self.ctrl = MPC(model=self.model, horizon=int(config.mpc.horizon_sec * self.CTRL_FREQ),
+                                   q_mpc=config.mpc.q, r_mpc=config.mpc.r)
+
+        self.state = None
+        self.state_history = []
+        self.action_history = []
+
+        # TODO: draw reference
+
+        self._take_off = False
+        self._setpoint_land = False
+        self._land = False
 
     def compute_control(
         self, obs: npt.NDArray[np.floating], info: dict | None = None
@@ -74,20 +111,32 @@ class Controller(BaseController):
         Returns:
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
-        obs_tf = ObsWrapper.observation_transform(obs, info, self._last_action)
-        action, _ = self.policy.predict(obs_tf, deterministic=True)
-        self._last_action[:] = action
-        target_pos = self.action_transform(action, obs)
-        action = np.zeros(4)
-        action[:3] = target_pos
+
+        remaining_ref = self.ref[:, info['step']:]
+        self.state = obs[:12]
+
+        action, next_state = self.ctrl.select_action(obs=self.state, info={"ref": remaining_ref})
+        target_pos = next_state[[0, 2, 4]]
+        target_vel = next_state[[1, 3, 5]]
+
+        # calculate target acc
+        y = np.array(self.model.symbolic.g_func(x=next_state, u=action)['g']).flatten()
+
+        target_acc = y[[2, 5, 8]]
+        target_yaw = next_state[8]
+        target_rpy_rates = y[[12, 13, 14]]
+
+        self.state_history.append(self.state)
+        self.action_history.append(action)
+
         return action
 
-    @staticmethod
-    def action_transform(
-        action: npt.NDArray[np.floating], obs: npt.NDArray[np.floating]
-    ) -> npt.NDArray[np.floating]:
-        drone_pos = obs[:3]
-        return drone_pos + action
-
     def episode_reset(self):
-        self._last_action = np.zeros(3)
+        self.action_history = []
+        self.state_history = []
+
+    def episode_learn(self):
+        pass
+
+    def reset(self):
+        pass

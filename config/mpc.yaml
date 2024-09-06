@@ -1,0 +1,35 @@
+planner:
+  duration: 6.0  # [s]
+
+estimator:
+  estimate_state: False
+  vicon_mask: [
+    True,   # x
+    False,  # x_dot
+    True,   # y
+    False,  # y_dot
+    True,   # z
+    False,  # z_dot
+    True,   # phi
+    True,   # theta
+    True,   # psi
+    False,  # p
+    False,  # q
+    False,  # r
+  ]
+
+mpc:
+  q: [
+    5.0, 0.01,
+    5.0, 0.01,
+    10.0, 0.01,
+    0.01, 0.01, 0.01,
+    1.0e-2, 1.0e-2, 1.0e-2,
+  ]
+
+  r: [
+    0.0, 0.0, 0.0, 0.0
+  ]
+
+  horizon_sec: 2.0
+
