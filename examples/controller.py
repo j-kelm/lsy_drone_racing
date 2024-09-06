@@ -116,18 +116,20 @@ class Controller(BaseController):
         self.state = obs[:12]
 
         action, next_state = self.ctrl.select_action(obs=self.state, info={"ref": remaining_ref})
-        target_pos = next_state[[0, 2, 4]]
-        target_vel = next_state[[1, 3, 5]]
+        target_pos = next_state[:3]
+        target_vel = next_state[3:6]
+
+        target_yaw = next_state[8]
 
         # calculate target acc
         y = np.array(self.model.symbolic.g_func(x=next_state, u=action)['g']).flatten()
-
-        target_acc = y[[2, 5, 8]]
-        target_yaw = next_state[8]
-        target_rpy_rates = y[[12, 13, 14]]
+        target_acc = y[6:9]
+        target_rpy_rates = y[12:15]
 
         self.state_history.append(self.state)
         self.action_history.append(action)
+
+        action = np.hstack([target_pos, target_vel, target_acc, target_yaw, target_rpy_rates])
 
         return action
 

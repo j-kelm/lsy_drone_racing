@@ -63,8 +63,8 @@ class Planner:
         self.traj = np.zeros(shape=(12, steps))
 
         t = np.linspace(0, 1, steps)
-        self.traj[[0, 2, 4]] = np.array(interpolate.splev(t, tck))
-        assert max(self.traj[4, :]) < 2.5, "Drone must stay below the ceiling"
+        self.traj[:3] = np.array(interpolate.splev(t, tck))
+        assert max(self.traj[2, :]) < 2.5, "Drone must stay below the ceiling"
         return self.traj
 
 
@@ -83,7 +83,7 @@ class PointPlanner:
         self.traj = np.zeros(shape=(12, steps))
 
         pos = np.linspace(start, end, steps).T
-        self.traj[[0, 2, 4]] = pos
+        self.traj[:3] = pos
 
         return self.traj
 
@@ -154,9 +154,9 @@ class LinearPlanner:
         traj = np.vstack(traj_list).T
 
         self.traj = np.zeros((12, np.shape(traj)[1]))
-        self.traj[[0, 2, 4]] = traj
+        self.traj[:3] = traj
         self.waypoints = waypoints
 
-        assert max(self.traj[4, :]) < 2.5, "Drone must stay below the ceiling"
+        assert max(self.traj[2, :]) < 2.5, "Drone must stay below the ceiling"
         return self.traj
 
