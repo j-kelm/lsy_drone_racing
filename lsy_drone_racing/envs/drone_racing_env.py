@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from enum import Enum
 
 import gymnasium
 import numpy as np
@@ -13,6 +14,14 @@ from lsy_drone_racing.sim.drone import Drone
 from lsy_drone_racing.sim.sim import Sim
 
 logger = logging.getLogger(__name__)
+
+
+class ActionMode(str, Enum):
+    """Type of actions to step the environment"""
+
+    FULLSTATE = "fullstate"  # Use fullstate commands [x, y, z, x_dot, y_dot, z_dot, x_ddot, y_ddot, z_ddot, yaw, roll_dot, pitch_dot, yaw_dot].
+    SIMPLE = "simple"  # Use simplified state commands [x, y, z, yaw]
+    THRUSTS = "thrusts"  # Use rotor thrust commands [T1, T2, T3, T4]
 
 
 class DroneRacingEnv(gymnasium.Env):
@@ -38,7 +47,13 @@ class DroneRacingEnv(gymnasium.Env):
             physics=config.sim.physics,
         )
         self.sim.seed(config.env.seed)
-        self.action_space = gymnasium.spaces.Box(low=-1, high=1, shape=(4,))
+        self.action_mode = ActionMode(config.env.action_mode)
+        if self.action_mode == ActionMode.SIMPLE:
+            self.action_space = gymnasium.spaces.Box(low=-1, high=1, shape=(4,))
+        elif self.action_mode == ActionMode.FULLSTATE:
+            self.action_space = gymnasium.spaces.Box(low=-1, high=1, shape=(12,))
+        elif self.action_mode == ActionMode.THRUSTS:
+            self.action_space = gymnasium.spaces.Box(low=-1, high=1, shape=(4,))
         fm = np.finfo(np.float32).max
         low = np.array([-5, -fm, -5, -fm, -0.25, -fm, -np.pi, -np.pi, -np.pi, -fm, -fm, -fm])
         high = np.array([5, fm, 5, fm, 2.5, fm, np.pi, np.pi, np.pi, fm, fm, fm])
@@ -77,14 +92,27 @@ class DroneRacingEnv(gymnasium.Env):
         commands, and runs the firmware loop and simulator according to the frequencies set.
 
         Args:
-            action: Full-state command [x_des, y_des, z_des, yaw_des] to follow.
+            action: Action to be applied, for more info see ActionMode
         """
-        zeros = np.zeros(3, dtype=np.float64)
         action = action.astype(np.float64)  # Drone firmware expects float64
-        pos, yaw = action[:3], action[3]
-        self.drone.full_state_cmd(pos, zeros, zeros, yaw, zeros)
+
+        if self.action_mode == ActionMode.SIMPLE:
+            assert action.size == 4, f"Wrong action size {action.size} for ActionMode {self.action_mode}, should be 4"
+            zeros = np.zeros(3, dtype=np.float64)
+            pos, yaw = action[:3], action[3]
+            self.drone.full_state_cmd(pos, zeros, zeros, yaw, zeros)
+        elif self.action_mode == ActionMode.FULLSTATE:
+            assert action.size == 13, f"Wrong action size {action.size} for ActionMode {self.action_mode}, should be 13"
+            pos, vel, acc, yaw, rpy_rate = action[:3], action[3:6], action[6:9], action[9], action[10:]
+            self.drone.full_state_cmd(pos, vel, acc, yaw, rpy_rate)
+        elif self.action_mode == ActionMode.THRUSTS:
+            assert action.size == 4, f"Wrong action size {action.size} for ActionMode {self.action_mode}, should be 4"
+            self.drone.desired_thrust = action
+        else:
+            raise NotImplementedError(f"ActionMode {self.action_mode} is not supported")
 
         thrust = self.drone.desired_thrust
+
         collision = False
         while self.drone.tick / self.drone.firmware_freq < (self._steps + 1) / self.step_freq:
             self.sim.step(thrust)
@@ -99,7 +127,13 @@ class DroneRacingEnv(gymnasium.Env):
             )
             if self.sim.collisions:
                 collision = True
-            thrust = self.drone.step_controller(pos, rpy, vel)[::-1]
+
+            if self.action_mode == ActionMode.THRUSTS:
+                _ = self.drone.step_controller(pos, rpy, vel)[::-1]  # dummy call to step tick
+            else:
+                thrust = self.drone.step_controller(pos, rpy, vel)[::-1]
+
+
         self.sim.drone.desired_thrust[:] = thrust
         self._steps += 1
         terminated = self.terminated or collision
