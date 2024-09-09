@@ -32,8 +32,13 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
+import casadi as cs
+
 from munch import munchify
 import yaml
+
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 
 from lsy_drone_racing.controller import BaseController
 from lsy_drone_racing.wrapper import ObsWrapper
@@ -77,9 +82,8 @@ class Controller(BaseController):
         self.planner = LinearPlanner(initial_info=initial_info, CTRL_FREQ=self.CTRL_FREQ)
         self.ref = self.planner.plan(initial_obs=self.initial_obs,
                                      gates=None,
-                                     speed=1.0)
-
-        # initialize mpc controller
+                                     speed=2.0)
+        # Get model and constraints
         self.model = Model(info=None)
         self.ctrl = MPC(model=self.model, horizon=int(config.mpc.horizon_sec * self.CTRL_FREQ),
                                    q_mpc=config.mpc.q, r_mpc=config.mpc.r)
@@ -113,7 +117,11 @@ class Controller(BaseController):
         """
 
         remaining_ref = self.ref[:, info['step']:]
-        self.state = obs[:12]
+        pos = obs[0:3]
+        rpy = obs[3:6]
+        vel = obs[6:9]
+        body_rates = obs[9:12]
+        self.state = np.concatenate([pos, vel, rpy, body_rates])
 
         action, next_state = self.ctrl.select_action(obs=self.state, info={"ref": remaining_ref})
         target_pos = next_state[:3]
@@ -130,7 +138,6 @@ class Controller(BaseController):
         self.action_history.append(action)
 
         action = np.hstack([target_pos, target_vel, target_acc, target_yaw, target_rpy_rates])
-
         return action
 
     def episode_reset(self):
@@ -138,7 +145,86 @@ class Controller(BaseController):
         self.state_history = []
 
     def episode_learn(self):
-        pass
+        mpc_plot_horizon = 4
+
+        mpc_states = np.swapaxes(np.array(self.ctrl.results_dict['horizon_states'])[:, :, :mpc_plot_horizon], 0, 1)
+        mpc_inputs = np.swapaxes(np.array(self.ctrl.results_dict['horizon_inputs'])[:, :, 0], 0, 1)
+        state_history = np.array(self.state_history).transpose()
+        action_history = np.array(self.action_history).transpose()
+
+        plot_length = np.min([np.shape(self.ref)[1], np.shape(state_history)[1]])
+        times = np.linspace(0, self.CTRL_TIMESTEP * plot_length, plot_length)
+
+        # Plot states
+        index_list = [0, 1, 2]
+
+        # compute MSE
+        mpc_error = ((mpc_states[index_list, 0:plot_length, 1] - self.ref[index_list, 0:plot_length]) ** 2).mean()
+        lowlevel_error = ((np.array(state_history)[index_list, 1:plot_length] - mpc_states[index_list,
+                                                                                0:plot_length - 1, 1]) ** 2).mean()
+
+        fig, axs = plt.subplots(len(index_list))
+        mpc_label = "mpc"
+        for axs_i, state_i in enumerate(index_list):
+            axs[axs_i].plot(times, state_history[state_i, 0:plot_length], label='actual')
+            axs[axs_i].plot(times, self.ref[state_i, 0:plot_length], color='r', label='desired')
+
+            # iterate mpc plot horizon
+            for timestep_i in range(len(times)):
+                if not timestep_i % mpc_plot_horizon and timestep_i + mpc_plot_horizon < len(times):
+                    axs[axs_i].plot(times[timestep_i:timestep_i + mpc_plot_horizon],
+                                    mpc_states[state_i, timestep_i], color='y',
+                                    label=mpc_label)
+                    mpc_label = "_nolegend_"
+
+            axs[axs_i].set(ylabel=self.model.STATE_LABELS[state_i] + f'\n[{self.model.STATE_UNITS[state_i]}]')
+            axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+            if axs_i != len(index_list) - 1:
+                axs[axs_i].set_xticks([])
+
+        axs[0].set_title(f'State Trajectories | MPC MSE: {mpc_error:.4E} | LL MSE: {lowlevel_error:.4E}')
+        axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
+        axs[-1].set(xlabel='time (sec)')
+
+        index_list = [3, 4, 5, 6, 7, 8, 9, 10, 11]
+        fig, axs = plt.subplots(len(index_list))
+        mpc_label = "mpc"
+        for axs_i, state_i in enumerate(index_list):
+            axs[axs_i].plot(times, state_history[state_i, 0:plot_length], label='actual')
+            axs[axs_i].plot(times, self.ref[state_i, 0:plot_length], color='r', label='desired')
+
+            # iterate mpc plot horizon
+            for timestep_i in range(len(times)):
+                if not timestep_i % mpc_plot_horizon and timestep_i + mpc_plot_horizon < len(times):
+                    axs[axs_i].plot(times[timestep_i:timestep_i + mpc_plot_horizon],
+                                    mpc_states[state_i, timestep_i], color='y',
+                                    label=mpc_label)
+                    mpc_label = "_nolegend_"
+
+            axs[axs_i].set(ylabel=self.model.STATE_LABELS[state_i] + f'\n[{self.model.STATE_UNITS[state_i]}]')
+            axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+            if axs_i != len(index_list) - 1:
+                axs[axs_i].set_xticks([])
+
+        axs[0].set_title(f'State Trajectories | MPC MSE: {mpc_error:.4E} | LL MSE: {lowlevel_error:.4E}')
+        axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
+        axs[-1].set(xlabel='time (sec)')
+
+        index_list = range(4)
+        fig, axs = plt.subplots(len(index_list))
+        for axs_i, state_i in enumerate(index_list):
+            axs[axs_i].plot(times, action_history[state_i, 0:plot_length], label='Low-Level Controller')
+            axs[axs_i].plot(times, mpc_inputs[state_i, 0:plot_length], color='r', label='MPC')
+
+            axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+            if axs_i != len(index_list) - 1:
+                axs[axs_i].set_xticks([])
+
+        axs[0].set_title(f'Action Trajectories')
+        axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
+        axs[-1].set(xlabel='time (sec)')
+
+        plt.show()
 
     def reset(self):
         pass

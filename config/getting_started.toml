@@ -19,7 +19,7 @@ reseed = false   # Whether to re-seed the random number generator between episod
 seed = 1337      # Random seed
 freq = 30        # Frequency of the environment's step function, in Hz
 symbolic = false # Whether to include symbolic expressions in the info dict. Note: This can interfere with multiprocessing! If you want to parallelize your training, set this to false.
-action_mode = "thrusts"
+action_mode = "fullstate"
 
 [env.track]
 # Tall gates: 1.0m height. Short gates: 0.525m height. Height is measured from the ground to the
@@ -48,7 +48,7 @@ pos = [-0.5, 0.0, 1.05]
 pos = [0.0, 1.0, 1.05]
 
 [env.track.drone]
-pos = [1.0, 1.0, 0.5]
+pos = [1.0, 1.0, 0.05]
 rpy = [0, 0, 0]
 vel = [0, 0, 0]
 ang_vel = [0, 0, 0]

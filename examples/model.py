@@ -56,9 +56,8 @@ class Model:
 
         self.setup_symbolics()
 
-        self.constraints = []
-        self.state_constraints_sym = []
         self.input_constraints_sym = []
+        self.state_constraints_sym = []
 
         self.STATE_LABELS = ['x', 'y', 'z', 'x_dot', 'y_dot', 'z_dot',
                              'phi', 'theta', 'psi', 'p', 'q', 'r']
@@ -117,7 +116,7 @@ class Model:
         pos_dot = cs.vertcat(x_dot, y_dot, z_dot)
         Mb = cs.vertcat(length / cs.sqrt(2.0) * (f1 + f2 - f3 - f4),
                         length / cs.sqrt(2.0) * (-f1 + f2 + f3 - f4),
-                        gamma * (-f1 + f2 - f3 + f4))
+                        gamma * (f1 - f2 + f3 - f4))
         rate_dot = Jinv @ (Mb - (cs.skew(cs.vertcat(p_body, q_body, r_body)) @ J @ cs.vertcat(p_body, q_body, r_body)))
         ang_dot = cs.blockcat([[1, cs.sin(phi) * cs.tan(theta), cs.cos(phi) * cs.tan(theta)],
                                 [0, cs.cos(phi), -cs.sin(phi)],
@@ -163,3 +162,4 @@ class Model:
 
         # Setup symbolic model.
         self.symbolic = SymbolicModel(dynamics=dynamics, cost=cost, dt=self.dt)
+

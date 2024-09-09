@@ -248,7 +248,7 @@ class MPC:
 
         # TODO: Move constraints to right place
         opti.subject_to(opti.bounded(0.03, u_var, 0.145))  # thrust limits 0.03 - 0.145, includes safety margin
-        opti.subject_to(opti.bounded(0.01, x_var[2, :], 2.5))  # room limit
+        opti.subject_to(opti.bounded(0.04, x_var[2, :], 2.5))  # room limit
 
         # Final state constraints.
         for sc_i, state_constraint in enumerate(self.state_constraints_sym):

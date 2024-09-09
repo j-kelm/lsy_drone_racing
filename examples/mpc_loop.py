@@ -10,13 +10,13 @@ from munch import munchify
 import yaml
 
 from examples.planner import Planner, PointPlanner, FilePlanner, LinearPlanner
-from examples.mpc_controller import MPC_Controller
+from examples.mpc_controller import MPC
 from examples.model import Model
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 
-SAVE_HISTORY = True
+SAVE_HISTORY = False
 
 
 # create mock initial info
@@ -39,16 +39,23 @@ INFO = {
         'low': {'shape': 'square', 'height': 0.525, 'edge': 0.45}
     },
     'obstacle_dimensions': {'shape': 'cylinder', 'height': 1.05, 'radius': 0.05},
-    'nominal_gates_pos_and_type': [
-        [-0.5, -0.5, 0, 0, 0, 3.14, 0]
+    'gates.pos': [
+        [0.45, -1.0, 0.525],
+        [1.0, -1.55, 1.0],
+        [0.0, 0.5, 0.525],
+        [-0.5, -0.5, 1.0],
     ],
-    'nominal_obstacles_pos': [],
+    'gates.rpy': [
+        [0.0, 0.0, 2.35],
+        [0.0, 0.0, -0.78],
+        [0.0, 0.0, 0.0],
+        [0.0, 0.0, 3.14],
+    ],
 }
 
 if __name__ == "__main__":
-    state = np.array([1.0, 0.0,
-                      1.0, 0.0,
-                      0.3, 0.0,
+    state = np.array([1.0, 1.0, 0.5,
+                      0.0, 0.0, -0.01,
                       0.0, 0.0, 0.0,
                       0.0, 0.0, 0.0])
 
@@ -56,7 +63,7 @@ if __name__ == "__main__":
     dt = 1.0 / CTRL_FREQ
 
     # initialize planner
-    path = "config/planner_config.yaml"
+    path = "config/mpc.yaml"
     with open(path, "r") as file:
         config = munchify(yaml.safe_load(file))
 
@@ -65,21 +72,24 @@ if __name__ == "__main__":
 
     # initialize mpc controller
     model = Model(info=None)
-    ctrl = MPC_Controller(model=model, horizon=int(config.mpc.horizon_sec * CTRL_FREQ), q_mpc=config.mpc.q, r_mpc=config.mpc.r)
+    ctrl = MPC(model=model, horizon=int(config.mpc.horizon_sec * CTRL_FREQ), q_mpc=config.mpc.q, r_mpc=config.mpc.r)
 
     state_history = []
+    action_history = []
 
     # loop over time steps
     for step in range(np.shape(ref)[1]):
         state_history.append(state)
         remaining_ref = ref[:, step:]
         action, state = ctrl.select_action(obs=state, info={"ref": remaining_ref})
+        action_history.append(action)
 
 
     # plot results
     mpc_data = ctrl.results_dict['horizon_states']
     mpc_array = np.array(mpc_data)[:, :, 1].transpose()
     state_history = np.array(state_history).transpose()
+    action_history = np.array(action_history).transpose()
 
     # save state history to file
     if SAVE_HISTORY:
@@ -90,7 +100,7 @@ if __name__ == "__main__":
     times = np.linspace(0, dt * plot_length, plot_length)
 
     # Plot states
-    index_list = [0, 2, 4]
+    index_list = [0, 1, 2]
 
     # compute MSE
     mpc_error = ((mpc_array[index_list, 0:plot_length] - ref[index_list, 0:plot_length]) ** 2).mean()
@@ -112,7 +122,7 @@ if __name__ == "__main__":
     axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
     axs[-1].set(xlabel='time (sec)')
 
-    index_list = [1, 3, 5, 6, 7, 8, 9, 10, 11]
+    index_list = [3, 4, 5, 6, 7, 8, 9, 10, 11]
     fig, axs = plt.subplots(len(index_list))
     for axs_i, state_i in enumerate(index_list):
 
@@ -125,6 +135,19 @@ if __name__ == "__main__":
         if axs_i != len(index_list) - 1:
             axs[axs_i].set_xticks([])
     axs[0].set_title('State Trajectories')
+    axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
+    axs[-1].set(xlabel='time (sec)')
+
+    index_list = range(4)
+    fig, axs = plt.subplots(len(index_list))
+    for axs_i, state_i in enumerate(index_list):
+        axs[axs_i].plot(times, action_history[state_i, 0:plot_length], color='r', label='MPC')
+
+        axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+        if axs_i != len(index_list) - 1:
+            axs[axs_i].set_xticks([])
+
+    axs[0].set_title(f'Action Trajectories')
     axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
     axs[-1].set(xlabel='time (sec)')
 
