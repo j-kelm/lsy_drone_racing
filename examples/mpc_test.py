@@ -13,6 +13,7 @@ import toml
 from examples.planner import Planner, PointPlanner, FilePlanner, LinearPlanner
 from examples.mpc_controller import MPC
 from examples.model import Model
+from examples.constraints import obstacle_constraints, gate_constraints
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
@@ -54,12 +55,7 @@ INFO = {
     ],
 }
 
-NUM_RUNS = 15
-
-
-def obstacle_constraint(obstacle_pos, r=0.15):
-    return [lambda x: 1 - ((x[0] - obstacle_pos[0]) / r) ** 4 - ((x[1] - obstacle_pos[1]) / r) ** 4 - (
-                (2 * x[2] / obstacle_pos[2]) - 1) ** 4]
+NUM_RUNS = 10
 
 if __name__ == "__main__":
 
@@ -97,44 +93,36 @@ if __name__ == "__main__":
     model = Model(info=None)
     model.input_constraints += [lambda u: 0.03 - u, lambda u: u - 0.145]  # 0.03 <= thrust <= 0.145
     model.state_constraints += [lambda x: 0.04 - x[2]]
-    model.state_constraints += obstacle_constraint([2.0, 1.0, 1.05])
+    model.state_constraints += gate_constraints([2.0, 1.0, 0.5] , gate_yaw=np.pi/2)
     ctrl = MPC(model=model, horizon=int(mpc_config.mpc.horizon_sec * CTRL_FREQ), q_mpc=mpc_config.mpc.q, r_mpc=mpc_config.mpc.r)
 
     states = []
     actions = []
 
     for n in range(NUM_RUNS):
-
         # randomize initial state
-        noise = np.random.uniform(-0.01, 0.01, nominal_state.size)
+        noise = np.random.uniform(-4.0e-1, 4.0e-1, nominal_state.size)
         state = nominal_state + noise
+
+        ref = planner.plan(initial_obs=state, gates=None, speed=1.0)
 
         ctrl.reset()
 
-        state_history = []
-        action_history = []
-
-        # loop over time steps
-        for step in range(np.shape(ref)[1]):
-            state_history.append(state)
-            remaining_ref = ref[:, step:]
-            action, state = ctrl.select_action(obs=state, info={"ref": remaining_ref})
-            action_history.append(action)
-
-        states.append(state_history)
-        actions.append(action_history)
+        action, _ = ctrl.select_action(obs=state, info={"ref": ref})
+        states.append(ctrl.results_dict['horizon_states'][0])
+        actions.append(ctrl.results_dict['horizon_inputs'][0])
 
 
     # plot results
-    states = np.swapaxes(np.array(states), 1, 2)
-    actions = np.swapaxes(np.array(actions), 1, 2)
+    states = np.array(states)
+    actions = np.array(actions)
 
     # save state history to file
     if SAVE_HISTORY:
         with open('examples/state_history.csv', 'wb') as f:
             np.savetxt(f, states, delimiter=',')
 
-    plot_length = np.min([np.shape(ref)[1], np.shape(states)[2]])
+    plot_length = np.min([np.shape(actions)[2], np.shape(states)[2]])
     times = np.linspace(0, dt * plot_length, plot_length)
 
     # Plot states

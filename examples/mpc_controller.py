@@ -6,21 +6,6 @@ import casadi as cs
 import numpy as np
 
 from examples.mpc_utils import get_cost_weight_matrix, rk_discrete
-from examples.constraints import GENERAL_CONSTRAINTS, create_constraint_list, ConstraintList
-
-def reset_constraints(constraints):
-    '''Set up the constraints list.
-
-    Args:
-        constraints (list): List of constraints controller is subject too.
-    '''
-
-    constraints_list = ConstraintList(constraints)
-    state_constraints_sym = constraints_list.get_state_constraint_symbolic_models()
-    input_constraints_sym = constraints_list.get_input_constraint_symbolic_models()
-    if len(constraints_list.input_state_constraints) > 0:
-        raise NotImplementedError('[Error] Cannot handle combined state input constraints yet.')
-    return constraints_list, state_constraints_sym, input_constraints_sym
 
 
 class MPC:
@@ -37,7 +22,6 @@ class MPC:
                  # runner args
                  # shared/base args
                  output_dir: str = 'results/temp',
-                 additional_constraints: list = None,
                  use_gpu: bool = False,
                  seed: int = 0,
                  compute_ipopt_initial_guess: bool = False,
@@ -67,15 +51,11 @@ class MPC:
             if k != 'self' and k != 'kwargs' and '__' not in k:
                 self.__dict__.update({k: v})
 
-        if additional_constraints is not None:
-            additional_ConstraintsList = create_constraint_list(additional_constraints,
-                                                                GENERAL_CONSTRAINTS,
-                                                                self.env)
-            self.additional_constraints = additional_ConstraintsList.constraints
-            self.constraints, self.state_constraints_sym, self.input_constraints_sym = reset_constraints(model.constraints + self.additional_constraints)
-        else:
-            self.constraints, self.state_constraints_sym, self.input_constraints_sym = reset_constraints(model.constraints)
-            self.additional_constraints = []
+        self.state_constraints = model.state_constraints
+        self.input_constraints = model.input_constraints
+
+        self.state_constraints_soft = model.state_constraints_soft
+        self.input_constraints_soft = model.input_constraints_soft
 
         # Model parameters
         self.model = model.symbolic
@@ -98,30 +78,6 @@ class MPC:
 
         self.reset()
 
-    def add_constraints(self,
-                        constraints
-                        ):
-        '''Add the constraints (from a list) to the system.
-
-        Args:
-            constraints (list): List of constraints controller is subject too.
-        '''
-        self.constraints, self.state_constraints_sym, self.input_constraints_sym = reset_constraints(constraints + self.constraints.constraints)
-
-    def remove_constraints(self,
-                           constraints
-                           ):
-        '''Remove constraints from the current constraint list.
-
-        Args:
-            constraints (list): list of constraints to be removed.
-        '''
-        old_constraints_list = self.constraints.constraints
-        for constraint in constraints:
-            assert constraint in self.constraints.constraints, \
-                ValueError('This constraint is not in the current list of constraints')
-            old_constraints_list.remove(constraint)
-        self.constraints, self.state_constraints_sym, self.input_constraints_sym = reset_constraints(old_constraints_list)
 
     def close(self):
         '''Cleans up resources.'''
@@ -203,8 +159,8 @@ class MPC:
         # Reference (equilibrium point or trajectory, last step for terminal cost).
         x_ref = opti.parameter(nx, T + 1)
         # Add slack variables
-        state_slack = opti.variable(len(self.state_constraints_sym))
-        input_slack = opti.variable(len(self.input_constraints_sym))
+        state_slack = opti.variable(len(self.state_constraints_soft))
+        input_slack = opti.variable(len(self.input_constraints_soft))
 
         # cost (cumulative)
         cost = 0
@@ -231,37 +187,35 @@ class MPC:
             next_state = self.dynamics_func(x0=x_var[:, i], p=u_var[:, i])['xf']
             opti.subject_to(x_var[:, i + 1] == next_state)
 
-            for sc_i, state_constraint in enumerate(self.state_constraints_sym):
-                if self.soft_constraints:
-                    opti.subject_to(state_constraint(x_var[:, i]) <= state_slack[sc_i])
-                    cost += self.soft_penalty * state_slack[sc_i]**2
-                    opti.subject_to(state_slack[sc_i] >= 0)
-                else:
-                    opti.subject_to(state_constraint(x_var[:, i]) < -self.constraint_tol)
-            for ic_i, input_constraint in enumerate(self.input_constraints_sym):
-                if self.soft_constraints:
-                    opti.subject_to(input_constraint(u_var[:, i]) <= input_slack[ic_i])
-                    cost += self.soft_penalty * input_slack[ic_i]**2
-                    opti.subject_to(input_slack[ic_i] >= 0)
-                else:
-                    opti.subject_to(input_constraint(u_var[:, i]) < -self.constraint_tol)
+            # hard constraints
+            for sc_i, state_constraint in enumerate(self.state_constraints):
+                opti.subject_to(state_constraint(x_var[:, i]) < -self.constraint_tol)
+            for ic_i, input_constraint in enumerate(self.input_constraints):
+                opti.subject_to(input_constraint(u_var[:, i]) < -self.constraint_tol)
 
-        # TODO: Move constraints to right place
-        opti.subject_to(opti.bounded(0.03, u_var, 0.145))  # thrust limits 0.03 - 0.145, includes safety margin
-        opti.subject_to(opti.bounded(0.04, x_var[2, :], 2.5))  # room limit
+            # soft constraints
+            for sc_i, state_constraint in enumerate(self.state_constraints_soft):
+                opti.subject_to(state_constraint(x_var[:, i]) <= state_slack[sc_i])
+                cost += self.soft_penalty * state_slack[sc_i]**2
+                opti.subject_to(state_slack[sc_i] >= 0)
+            for ic_i, input_constraint in enumerate(self.input_constraints_soft):
+                opti.subject_to(input_constraint(u_var[:, i]) <= input_slack[ic_i])
+                cost += self.soft_penalty * input_slack[ic_i]**2
+                opti.subject_to(input_slack[ic_i] >= 0)
 
         # Final state constraints.
-        for sc_i, state_constraint in enumerate(self.state_constraints_sym):
-            if self.soft_constraints:
-                opti.subject_to(state_constraint(x_var[:, -1]) <= state_slack[sc_i])
-                cost += self.soft_penalty * state_slack[sc_i] ** 2
-                opti.subject_to(state_slack[sc_i] >= 0)
-            else:
-                opti.subject_to(state_constraint(x_var[:, -1]) <= -self.constraint_tol)
+        for sc_i, state_constraint in enumerate(self.state_constraints):
+            opti.subject_to(state_constraint(x_var[:, -1]) <= -self.constraint_tol)
+        for sc_i, state_constraint in enumerate(self.state_constraints_soft):
+            opti.subject_to(state_constraint(x_var[:, -1]) <= state_slack[sc_i])
+            cost += self.soft_penalty * state_slack[sc_i] ** 2
+            opti.subject_to(state_slack[sc_i] >= 0)
+
         # initial condition constraints
         opti.subject_to(x_var[:, 0] == x_init)
 
         opti.minimize(cost)
+
         # Create solver
         opts = {'expand': True, 'error_on_fail': False}
         opti.solver(solver, opts)

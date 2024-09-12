@@ -27,12 +27,8 @@ Tips:
 
 from __future__ import annotations  # Python 3.10 type hints
 
-from pathlib import Path
-
 import numpy as np
 import numpy.typing as npt
-
-import casadi as cs
 
 from munch import munchify
 import yaml
@@ -41,11 +37,11 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 
 from lsy_drone_racing.controller import BaseController
-from lsy_drone_racing.wrapper import ObsWrapper
 
 from examples.planner import Planner, FilePlanner, LinearPlanner, PointPlanner
 from examples.mpc_controller import MPC
 from examples.model import Model
+from examples.constraints import obstacle_constraints, gate_constraints
 
 
 class Controller(BaseController):
@@ -80,11 +76,19 @@ class Controller(BaseController):
 
         # initialize planner
         self.planner = LinearPlanner(initial_info=initial_info, CTRL_FREQ=self.CTRL_FREQ)
-        self.ref = self.planner.plan(initial_obs=self.initial_obs,
-                                     gates=None,
-                                     speed=2.0)
+        self.ref = self.planner.plan(initial_obs=self.initial_obs, gates=None, speed=2.0)
+
         # Get model and constraints
         self.model = Model(info=None)
+        self.model.input_constraints += [lambda u: 0.03 - u, lambda u: u - 0.145] # 0.03 <= thrust <= 0.145
+        self.model.state_constraints += [lambda x: 0.04 - x[2]]
+
+        for obstacle_pos in self.initial_info['obstacles.pos']:
+            self.model.state_constraints_soft += obstacle_constraints(obstacle_pos, r=0.125)
+
+        for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
+            self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.125)
+
         self.ctrl = MPC(model=self.model, horizon=int(config.mpc.horizon_sec * self.CTRL_FREQ),
                                    q_mpc=config.mpc.q, r_mpc=config.mpc.r)
 
@@ -93,10 +97,6 @@ class Controller(BaseController):
         self.action_history = []
 
         # TODO: draw reference
-
-        self._take_off = False
-        self._setpoint_land = False
-        self._land = False
 
     def compute_control(
         self, obs: npt.NDArray[np.floating], info: dict | None = None

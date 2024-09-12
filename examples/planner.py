@@ -107,7 +107,7 @@ class LinearPlanner:
         self.initial_info = initial_info
         self.CTRL_FREQ = CTRL_FREQ
 
-    def plan(self, gates, initial_obs, duration=3, speed=2.5, acc=4.0):
+    def plan(self, gates, initial_obs, speed=2.5, acc=4.0):
         # Example: Hard-code waypoints through the gates. Obviously this is a crude way of
         # completing the challenge that is highly susceptible to noise and does not generalize at
         # all. It is meant solely as an example on how the drones can be controlled

@@ -16,7 +16,7 @@ INFO = {
         'quadrotor_mass': 0.03454,
         'quadrotor_ixx_inertia': 1.4e-05,
         'quadrotor_iyy_inertia': 1.4e-05,
-        'quadrotor_izz_inertia': 2.17e-05
+        'quadrotor_izz_inertia': 2.17e-05,
     },
     'x_reference': np.array([ 0. ,  0. , -2. ,  0. ,  0.5,  0. ,  0. ,  0. ,  0. ,  0. ,  0. , 0. ]),
     'u_reference': np.array([0.084623, 0.084623, 0.084623, 0.084623]),
@@ -56,8 +56,12 @@ class Model:
 
         self.setup_symbolics()
 
-        self.input_constraints_sym = []
-        self.state_constraints_sym = []
+        self.input_bounds = None
+        self.state_bounds = None
+        self.input_constraints = []
+        self.state_constraints = []
+        self.input_constraints_soft = []
+        self.state_constraints_soft = []
 
         self.STATE_LABELS = ['x', 'y', 'z', 'x_dot', 'y_dot', 'z_dot',
                              'phi', 'theta', 'psi', 'p', 'q', 'r']
