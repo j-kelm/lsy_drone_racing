@@ -76,12 +76,12 @@ class Controller(BaseController):
 
         # initialize planner
         self.planner = LinearPlanner(initial_info=initial_info, CTRL_FREQ=self.CTRL_FREQ)
-        self.ref = self.planner.plan(initial_obs=self.initial_obs, gates=None, speed=2.0)
+        self.ref = self.planner.plan(initial_obs=self.initial_obs, gates=None, speed=2.5, acc=8)
 
         # Get model and constraints
         self.model = Model(info=None)
-        self.model.input_constraints += [lambda u: 0.03 - u, lambda u: u - 0.145] # 0.03 <= thrust <= 0.145
-        self.model.state_constraints += [lambda x: 0.04 - x[2]]
+        self.model.input_constraints_soft += [lambda u: 0.03 - u, lambda u: u - 0.145] # 0.03 <= thrust <= 0.145
+        self.model.state_constraints_soft += [lambda x: 0.04 - x[2]]
 
         for obstacle_pos in self.initial_info['obstacles.pos']:
             self.model.state_constraints_soft += obstacle_constraints(obstacle_pos, r=0.125)

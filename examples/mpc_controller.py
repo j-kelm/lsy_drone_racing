@@ -16,7 +16,7 @@ class MPC:
                  r_mpc: list = [0.01],
                  warmstart: bool = True,
                  soft_constraints: bool = False,
-                 soft_penalty: float = 10000,
+                 soft_penalty: float = 1e3,
                  terminate_run_on_done: bool = True,
                  constraint_tol: float = 1e-6,
                  # runner args
