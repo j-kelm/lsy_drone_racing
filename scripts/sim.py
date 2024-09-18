@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 
 import fire
 import gymnasium
-import numpy as np
 import pybullet as p
+import cv2
 
 from lsy_drone_racing.utils import load_config, load_controller
 from lsy_drone_racing.wrapper import DroneRacingObservationWrapper
@@ -60,12 +60,16 @@ def simulate(
     stats = {"ep_reward": 0, "collisions": 0, "violations": 0, "gates_passed": 0}
     ep_times = []
 
+    # Create video stream
+    if config.sim.save_video:
+        video_stream = cv2.VideoWriter(config.sim.save_video, cv2.VideoWriter_fourcc(*'mp4v'), config.env.freq, (640, 480))
+
     # Run the episodes.
     for _ in range(n_runs):
         ep_start = time.time()
         done = False
-        action = np.zeros(4)
-        reward = 0
+        # action = np.zeros(4)
+        # reward = 0
         obs, info = env.reset()
         info["ctrl_timestep"] = 1 / config.env.freq
         info["ctrl_freq"] = config.env.freq
@@ -92,6 +96,9 @@ def simulate(
 
             # Get the observation from the motion capture system
             # Compute control input.
+            if config.sim.save_video:
+                video_stream.write(env.render()[...,::-1])  # rgb to opencv bgr
+
             action = ctrl.compute_control(obs, info)
             obs, reward, terminated, truncated, info = env.step(action)
             done = terminated or truncated
@@ -120,7 +127,10 @@ def simulate(
         ep_times.append(curr_time if info["target_gate"] == -1 else None)
 
     # Close the environment
+    if config.sim.save_video:
+        video_stream.write(env.render()[...,::-1])  # rgb to opencv bgr
     env.close()
+    video_stream.release()
     return ep_times
 
 

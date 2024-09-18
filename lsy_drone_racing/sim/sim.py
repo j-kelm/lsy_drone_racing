@@ -202,7 +202,7 @@ class Sim:
             flags=p.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
             physicsClientId=self.pyb_client,
         )
-        return np.reshape(rgb, (h, w, 4))
+        return np.reshape(rgb, (h, w, 4))  # TODO: Why reshape here?
 
     def close(self):
         """Stop logging and disconnect from the PyBullet simulation."""
@@ -424,11 +424,11 @@ class SimSettings:
             farVal=1000.0,
         )
         self.camera_view = p.computeViewMatrixFromYawPitchRoll(
-            distance=3,
-            yaw=-30,
+            distance=3.5,
+            yaw=-35,
             pitch=-30,
             roll=0,
-            cameraTargetPosition=[0, 0, 0],
+            cameraTargetPosition=[1, 0, 0],
             upAxisIndex=2,
             physicsClientId=0,
         )
