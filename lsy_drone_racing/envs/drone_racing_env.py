@@ -27,7 +27,7 @@ class ActionMode(str, Enum):
 class DroneRacingEnv(gymnasium.Env):
     CONTROLLER = "mellinger"  # specifies controller type
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, render_mode="human"):
         """Initialize the DroneRacingEnv.
 
         Args:
@@ -224,7 +224,7 @@ class DroneRacingEnv(gymnasium.Env):
                 self.target_gate = -1
 
     def render(self):
-        self.sim.render()
+        return self.sim.render()[:, :, :3]
 
     def close(self):
         self.sim.close()

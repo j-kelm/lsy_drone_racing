@@ -30,11 +30,12 @@ from __future__ import annotations  # Python 3.10 type hints
 import numpy as np
 import numpy.typing as npt
 
-from munch import munchify
-import yaml
-
+from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
+
+from munch import munchify
+import yaml
 
 from lsy_drone_racing.controller import BaseController
 
@@ -87,7 +88,7 @@ class Controller(BaseController):
             self.model.state_constraints_soft += obstacle_constraints(obstacle_pos, r=0.125)
 
         for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
-            self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.125)
+            self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.1)
 
         self.ctrl = MPC(model=self.model, horizon=int(config.mpc.horizon_sec * self.CTRL_FREQ),
                                    q_mpc=config.mpc.q, r_mpc=config.mpc.r)
@@ -144,87 +145,113 @@ class Controller(BaseController):
         self.action_history = []
         self.state_history = []
 
+    def save_episode(self, file):
+        mpc_states = np.swapaxes(np.array(self.ctrl.results_dict['horizon_states']), 0, 1)
+        mpc_inputs = np.swapaxes(np.array(self.ctrl.results_dict['horizon_inputs']), 0, 1)
+
+        np.savez(file, mpc_states=mpc_states, mpc_inputs=mpc_inputs, mpc_reference=self.ref)
+
     def episode_learn(self):
-        mpc_plot_horizon = 4
-
-        mpc_states = np.swapaxes(np.array(self.ctrl.results_dict['horizon_states'])[:, :, :mpc_plot_horizon], 0, 1)
-        mpc_inputs = np.swapaxes(np.array(self.ctrl.results_dict['horizon_inputs'])[:, :, 0], 0, 1)
-        state_history = np.array(self.state_history).transpose()
-        action_history = np.array(self.action_history).transpose()
-
-        plot_length = np.min([np.shape(self.ref)[1], np.shape(state_history)[1]])
-        times = np.linspace(0, self.CTRL_TIMESTEP * plot_length, plot_length)
-
-        # Plot states
-        index_list = [0, 1, 2]
-
-        # compute MSE
-        mpc_error = ((mpc_states[index_list, 0:plot_length, 1] - self.ref[index_list, 0:plot_length]) ** 2).mean()
-        lowlevel_error = ((np.array(state_history)[index_list, 1:plot_length] - mpc_states[index_list,
-                                                                                0:plot_length - 1, 1]) ** 2).mean()
-
-        fig, axs = plt.subplots(len(index_list))
-        mpc_label = "mpc"
-        for axs_i, state_i in enumerate(index_list):
-            axs[axs_i].plot(times, state_history[state_i, 0:plot_length], label='actual')
-            axs[axs_i].plot(times, self.ref[state_i, 0:plot_length], color='r', label='desired')
-
-            # iterate mpc plot horizon
-            for timestep_i in range(len(times)):
-                if not timestep_i % mpc_plot_horizon and timestep_i + mpc_plot_horizon < len(times):
-                    axs[axs_i].plot(times[timestep_i:timestep_i + mpc_plot_horizon],
-                                    mpc_states[state_i, timestep_i], color='y',
-                                    label=mpc_label)
-                    mpc_label = "_nolegend_"
-
-            axs[axs_i].set(ylabel=self.model.STATE_LABELS[state_i] + f'\n[{self.model.STATE_UNITS[state_i]}]')
-            axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-            if axs_i != len(index_list) - 1:
-                axs[axs_i].set_xticks([])
-
-        axs[0].set_title(f'State Trajectories | MPC MSE: {mpc_error:.4E} | LL MSE: {lowlevel_error:.4E}')
-        axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
-        axs[-1].set(xlabel='time (sec)')
-
-        index_list = [3, 4, 5, 6, 7, 8, 9, 10, 11]
-        fig, axs = plt.subplots(len(index_list))
-        mpc_label = "mpc"
-        for axs_i, state_i in enumerate(index_list):
-            axs[axs_i].plot(times, state_history[state_i, 0:plot_length], label='actual')
-            axs[axs_i].plot(times, self.ref[state_i, 0:plot_length], color='r', label='desired')
-
-            # iterate mpc plot horizon
-            for timestep_i in range(len(times)):
-                if not timestep_i % mpc_plot_horizon and timestep_i + mpc_plot_horizon < len(times):
-                    axs[axs_i].plot(times[timestep_i:timestep_i + mpc_plot_horizon],
-                                    mpc_states[state_i, timestep_i], color='y',
-                                    label=mpc_label)
-                    mpc_label = "_nolegend_"
-
-            axs[axs_i].set(ylabel=self.model.STATE_LABELS[state_i] + f'\n[{self.model.STATE_UNITS[state_i]}]')
-            axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-            if axs_i != len(index_list) - 1:
-                axs[axs_i].set_xticks([])
-
-        axs[0].set_title(f'State Trajectories | MPC MSE: {mpc_error:.4E} | LL MSE: {lowlevel_error:.4E}')
-        axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
-        axs[-1].set(xlabel='time (sec)')
-
-        index_list = range(4)
-        fig, axs = plt.subplots(len(index_list))
-        for axs_i, state_i in enumerate(index_list):
-            axs[axs_i].plot(times, action_history[state_i, 0:plot_length], label='Low-Level Controller')
-            axs[axs_i].plot(times, mpc_inputs[state_i, 0:plot_length], color='r', label='MPC')
-
-            axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-            if axs_i != len(index_list) - 1:
-                axs[axs_i].set_xticks([])
-
-        axs[0].set_title(f'Action Trajectories')
-        axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
-        axs[-1].set(xlabel='time (sec)')
-
-        plt.show()
+        # use this function to plot episode data instead of learning
+        file_path = "output/states.npz"
+        self.save_episode(file_path)
+        history = np.load(file_path)
+        plot_3d(history)
 
     def reset(self):
         pass
+
+
+def plot_all(history, model, dt, mpc_plot_horizon=4):
+    # (batch x state x timestep x horizon)
+
+    mpc_states = history['mpc_states'][:, :, :mpc_plot_horizon]
+    mpc_inputs = history['mpc_inputs'][:, :, 0]
+
+    state_history = mpc_states[:, :, 0]
+    ref = history['mpc_reference']
+
+    plot_length = np.min([np.shape(ref)[1], np.shape(state_history)[1]])
+    times = np.linspace(0, dt * plot_length, plot_length)
+
+    # Plot states
+    index_list = [0, 1, 2]
+
+    # compute MSE
+    mpc_error = ((mpc_states[index_list, 0:plot_length, 1] - ref[index_list, 0:plot_length]) ** 2).mean()
+    lowlevel_error = ((np.array(state_history)[index_list, 1:plot_length] - mpc_states[index_list,
+                                                                            0:plot_length - 1, 1]) ** 2).mean()
+
+    fig, axs = plt.subplots(len(index_list))
+    mpc_label = "mpc"
+    for axs_i, state_i in enumerate(index_list):
+        axs[axs_i].plot(times, state_history[state_i, 0:plot_length], label='actual')
+        axs[axs_i].plot(times, ref[state_i, 0:plot_length], color='r', label='desired')
+
+        # iterate mpc plot horizon
+        for timestep_i in range(len(times)):
+            if not timestep_i % mpc_plot_horizon and timestep_i + mpc_plot_horizon < len(times):
+                axs[axs_i].plot(times[timestep_i:timestep_i + mpc_plot_horizon],
+                                mpc_states[state_i, timestep_i], color='y',
+                                label=mpc_label)
+                mpc_label = "_nolegend_"
+
+        axs[axs_i].set(ylabel=model.STATE_LABELS[state_i] + f'\n[{model.STATE_UNITS[state_i]}]')
+        axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+        if axs_i != len(index_list) - 1:
+            axs[axs_i].set_xticks([])
+
+    axs[0].set_title(f'State Trajectories | MPC MSE: {mpc_error:.4E} | LL MSE: {lowlevel_error:.4E}')
+    axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
+    axs[-1].set(xlabel='time (sec)')
+
+    index_list = [3, 4, 5, 6, 7, 8, 9, 10, 11]
+    fig, axs = plt.subplots(len(index_list))
+    mpc_label = "mpc"
+    for axs_i, state_i in enumerate(index_list):
+        axs[axs_i].plot(times, state_history[state_i, 0:plot_length], label='actual')
+        axs[axs_i].plot(times, ref[state_i, 0:plot_length], color='r', label='desired')
+
+        # iterate mpc plot horizon
+        for timestep_i in range(len(times)):
+            if not timestep_i % mpc_plot_horizon and timestep_i + mpc_plot_horizon < len(times):
+                axs[axs_i].plot(times[timestep_i:timestep_i + mpc_plot_horizon],
+                                mpc_states[state_i, timestep_i], color='y',
+                                label=mpc_label)
+                mpc_label = "_nolegend_"
+
+        axs[axs_i].set(ylabel=model.STATE_LABELS[state_i] + f'\n[{model.STATE_UNITS[state_i]}]')
+        axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+        if axs_i != len(index_list) - 1:
+            axs[axs_i].set_xticks([])
+
+    axs[0].set_title(f'State Trajectories | MPC MSE: {mpc_error:.4E} | LL MSE: {lowlevel_error:.4E}')
+    axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
+    axs[-1].set(xlabel='time (sec)')
+
+    index_list = range(4)
+    fig, axs = plt.subplots(len(index_list))
+    for axs_i, state_i in enumerate(index_list):
+        axs[axs_i].plot(times, mpc_inputs[state_i, 0:plot_length], color='r', label='MPC')
+
+        axs[axs_i].set(ylabel=model.INPUT_LABELS[state_i] + f'\n[{model.INPUT_UNITS[state_i]}]')
+        axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+        if axs_i != len(index_list) - 1:
+            axs[axs_i].set_xticks([])
+
+    axs[0].set_title(f'Action Trajectories')
+    axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
+    axs[-1].set(xlabel='time (sec)')
+
+    plt.show()
+
+
+def plot_3d(history, mpc_plot_horizon=4):
+    # ((TODO: batch) x state x timestep x horizon)
+    state_history = history['mpc_states'][0:3 , :, 0]
+    ref = history['mpc_reference'][0:3, :]
+    ax = plt.axes(projection="3d")
+
+    ax.plot3D(state_history[0], state_history[1], state_history[2])
+    ax.plot3D(ref[0], ref[1], ref[2], color="red")
+    plt.show()

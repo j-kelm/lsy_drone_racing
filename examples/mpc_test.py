@@ -55,7 +55,16 @@ INFO = {
     ],
 }
 
-NUM_RUNS = 10
+NUM_RUNS = 5
+
+def data_for_cylinder_along_z(center_x,center_y,radius,height_z):
+    z = np.linspace(0, height_z, 20)
+    theta = np.linspace(0, 2*np.pi, 20)
+    theta_grid, z_grid=np.meshgrid(theta, z)
+    x_grid = radius*np.cos(theta_grid) + center_x
+    y_grid = radius*np.sin(theta_grid) + center_y
+    return x_grid,y_grid,z_grid
+
 
 if __name__ == "__main__":
 
@@ -87,13 +96,15 @@ if __name__ == "__main__":
 
 
     planner = LinearPlanner(initial_info=info, CTRL_FREQ=CTRL_FREQ)
-    ref = planner.plan(initial_obs=nominal_state, gates=None, speed=2.0)
+    ref = planner.plan(initial_obs=nominal_state, gates=None, speed=2.5, acc=8.0)
 
     # initialize mpc controller
     model = Model(info=None)
-    model.input_constraints += [lambda u: 0.03 - u, lambda u: u - 0.145]  # 0.03 <= thrust <= 0.145
-    model.state_constraints += [lambda x: 0.04 - x[2]]
-    model.state_constraints += gate_constraints([2.0, 1.0, 0.5] , gate_yaw=np.pi/2)
+    model.input_constraints_soft += [lambda u: 0.03 - u, lambda u: u - 0.145]  # 0.03 <= thrust <= 0.145
+    model.state_constraints_soft += [lambda x: 0.04 - x[2]]
+
+    model.state_constraints_soft += obstacle_constraints([-2.0, 1.0, 1.05], r=0.2)
+    model.state_constraints_soft += gate_constraints([-1.5, 1.0, 0.525], gate_yaw=-np.pi/2, r=0.125)
     ctrl = MPC(model=model, horizon=int(mpc_config.mpc.horizon_sec * CTRL_FREQ), q_mpc=mpc_config.mpc.q, r_mpc=mpc_config.mpc.r)
 
     states = []
@@ -101,10 +112,10 @@ if __name__ == "__main__":
 
     for n in range(NUM_RUNS):
         # randomize initial state
-        noise = np.random.uniform(-4.0e-1, 4.0e-1, nominal_state.size)
+        noise = np.random.uniform(-2.5e-2, 2.5e-2, nominal_state.size)
         state = nominal_state + noise
 
-        ref = planner.plan(initial_obs=state, gates=None, speed=1.0)
+        # ref = planner.plan(initial_obs=state, gates=None, speed=1.0)
 
         ctrl.reset()
 
@@ -119,62 +130,25 @@ if __name__ == "__main__":
 
     # save state history to file
     if SAVE_HISTORY:
-        with open('examples/state_history.csv', 'wb') as f:
-            np.savetxt(f, states, delimiter=',')
+        mpc_states = states
+        mpc_inputs = actions
+        np.savez("output/multi_modality.npz", mpc_states=mpc_states, mpc_inputs=mpc_inputs, mpc_reference=ref)
+
+    states = np.load("output/nn.npy")
+
+    fig = plt.figure()
+    ax = plt.axes(projection="3d")
+    # ax.plot3D(ref[0], ref[1], ref[2], color="red")
+    Xc, Yc, Zc = data_for_cylinder_along_z(-2.0, 1, 0.18, 1.0)
+    ax.plot_surface(Xc, Yc, Zc, alpha=0.1)
+    for run_states in states:
+        ax.plot3D(run_states[0], run_states[1], run_states[2])
+
+    #ax.set_xlim([-2.6, -1.])
+    ax.set_aspect('equal', 'box')
+    fig.tight_layout()
+    plt.show()
 
     plot_length = np.min([np.shape(actions)[2], np.shape(states)[2]])
     times = np.linspace(0, dt * plot_length, plot_length)
 
-    # Plot states
-    index_list = [0, 1, 2]
-
-    fig, axs = plt.subplots(len(index_list))
-    for axs_i, state_i in enumerate(index_list):
-        axs[axs_i].plot(times, ref[state_i, 0:plot_length], color='r', label='desired')
-
-        for run_states in states:
-            axs[axs_i].plot(times, np.array(run_states)[state_i, 0:plot_length])
-
-
-        axs[axs_i].set(ylabel=model.STATE_LABELS[state_i] + f'\n[{model.STATE_UNITS[state_i]}]')
-        axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-        if axs_i != len(index_list) - 1:
-            axs[axs_i].set_xticks([])
-
-    axs[0].set_title(f'State Trajectories')
-    axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
-    axs[-1].set(xlabel='time (sec)')
-
-    index_list = [3, 4, 5, 6, 7, 8, 9, 10, 11]
-    fig, axs = plt.subplots(len(index_list))
-    for axs_i, state_i in enumerate(index_list):
-        axs[axs_i].plot(times, ref[state_i, 0:plot_length], color='r', label='desired')
-
-        for run_states in states:
-            axs[axs_i].plot(times, np.array(run_states)[state_i, 0:plot_length])
-
-        axs[axs_i].set(ylabel=model.STATE_LABELS[state_i] + f'\n[{model.STATE_UNITS[state_i]}]')
-        axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-        if axs_i != len(index_list) - 1:
-            axs[axs_i].set_xticks([])
-
-    axs[0].set_title(f'State Trajectories')
-    axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
-    axs[-1].set(xlabel='time (sec)')
-
-    index_list = range(4)
-    fig, axs = plt.subplots(len(index_list))
-    for axs_i, state_i in enumerate(index_list):
-        for run_actions in actions:
-            axs[axs_i].plot(times, np.array(run_actions)[state_i, 0:plot_length])
-
-        axs[axs_i].set(ylabel=f'T{state_i+1} ' + f'\n[N]')
-        axs[axs_i].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-        if axs_i != len(index_list) - 1:
-            axs[axs_i].set_xticks([])
-
-    axs[0].set_title(f'Action Trajectories')
-    # axs[-1].legend(ncol=3, bbox_transform=fig.transFigure, bbox_to_anchor=(1, 0), loc='lower right')
-    axs[-1].set(xlabel='time (sec)')
-
-    plt.show()
