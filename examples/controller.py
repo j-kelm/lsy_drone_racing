@@ -36,10 +36,11 @@ from matplotlib.ticker import FormatStrFormatter
 
 from munch import munchify
 import yaml
+from sympy.abc import lamda
 
 from lsy_drone_racing.controller import BaseController
 
-from examples.planner import Planner, FilePlanner, LinearPlanner, PointPlanner
+from examples.planner import Planner, FilePlanner, LinearPlanner, PolynomialPlanner
 from examples.mpc_controller import MPC
 from examples.model import Model
 from examples.constraints import obstacle_constraints, gate_constraints
@@ -76,22 +77,24 @@ class Controller(BaseController):
             config = munchify(yaml.safe_load(file))
 
         # initialize planner
-        self.planner = LinearPlanner(initial_info=initial_info, CTRL_FREQ=self.CTRL_FREQ)
-        self.ref = self.planner.plan(initial_obs=self.initial_obs, gates=None, speed=2.5, acc=8)
+        self.planner = PolynomialPlanner(initial_info=initial_info, CTRL_FREQ=self.CTRL_FREQ)
+        self.ref, next_gate = self.planner.plan(initial_obs=self.initial_obs, speed=2.0)
 
         # Get model and constraints
         self.model = Model(info=None)
         self.model.input_constraints_soft += [lambda u: 0.03 - u, lambda u: u - 0.145] # 0.03 <= thrust <= 0.145
-        self.model.state_constraints_soft += [lambda x: 0.04 - x[2]]
+        self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
+        # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
+        # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 
         for obstacle_pos in self.initial_info['obstacles.pos']:
-            self.model.state_constraints_soft += obstacle_constraints(obstacle_pos, r=0.125)
+            self.model.state_constraints_soft += obstacle_constraints(obstacle_pos, r=0.17)
 
         for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
-            self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.1)
+            self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.15)
 
         self.ctrl = MPC(model=self.model, horizon=int(config.mpc.horizon_sec * self.CTRL_FREQ),
-                                   q_mpc=config.mpc.q, r_mpc=config.mpc.r)
+                                   q_mpc=config.mpc.q, r_mpc=config.mpc.r, soft_penalty=1e5)
 
         self.state = None
         self.state_history = []
@@ -117,14 +120,21 @@ class Controller(BaseController):
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
 
-        remaining_ref = self.ref[:, info['step']:]
+        remaining_ref = self.ref[:, info['step']:] if info['step'] < self.ref.shape[1] else self.ref[:, -1:]
         pos = obs[0:3]
         rpy = obs[3:6]
         vel = obs[6:9]
         body_rates = obs[9:12]
         self.state = np.concatenate([pos, vel, rpy, body_rates])
 
-        action, next_state = self.ctrl.select_action(obs=self.state, info={"ref": remaining_ref})
+        action, next_state = self.ctrl.select_action(obs=self.state,
+                                                     ref=remaining_ref,
+                                                     info={
+                                                         "state_guess": None,
+                                                         "action_guess": None,
+                                                         "horizon_q": None,
+                                                         "horizon_r": None,
+                                                     })
         target_pos = next_state[:3]
         target_vel = next_state[3:6]
 

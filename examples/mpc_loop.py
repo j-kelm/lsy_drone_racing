@@ -57,10 +57,6 @@ INFO = {
 NUM_RUNS = 15
 
 
-def obstacle_constraint(obstacle_pos, r=0.15):
-    return [lambda x: 1 - ((x[0] - obstacle_pos[0]) / r) ** 4 - ((x[1] - obstacle_pos[1]) / r) ** 4 - (
-                (2 * x[2] / obstacle_pos[2]) - 1) ** 4]
-
 if __name__ == "__main__":
 
     CTRL_FREQ = 33

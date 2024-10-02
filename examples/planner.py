@@ -1,71 +1,71 @@
 import numpy as np
 from scipy import interpolate
-
+import minsnap_trajectories as ms
 
 class Planner:
     def __init__(self, initial_info, CTRL_FREQ):
         self.initial_info = initial_info
         self.CTRL_FREQ = CTRL_FREQ
 
-    def plan(self, gates, initial_obs, duration=13):
-        # Example: Hard-code waypoints through the gates. Obviously this is a crude way of
-        # completing the challenge that is highly susceptible to noise and does not generalize at
-        # all. It is meant solely as an example on how the drones can be controlled
-        waypoints = []
-        waypoints.append([initial_obs[0], initial_obs[2], 0.3])
+    def plan(self, gates, initial_obs, speed=2.5, acc=4.0):
+        gates_pos = self.initial_info['gates.pos']
+        gates_rpy = self.initial_info['gates.rpy']
 
-        gates = [  # x, y, z, r, p, y, type (0: `tall` obstacle, 1: `low` obstacle)
-            [0.45, -1.0, 0, 0, 0, 2.35, 1],
-            [1.0, -1.55, 0, 0, 0, -0.78, 0],
-            [0.0, 0.5, 0, 0, 0, 0, 1],
-            [-0.5, -0.5, 0, 0, 0, 3.14, 0]
-        ]
+        waypoints = list()
 
-        z_low = self.initial_info["gate_dimensions"]["low"]["height"]
-        z_high = self.initial_info["gate_dimensions"]["tall"]["height"]
-        waypoints.append([1, 0, z_low])
-        waypoints.append([gates[0][0] + 0.2, gates[0][1] + 0.1, z_low])
-        waypoints.append([gates[0][0] + 0.1, gates[0][1], z_low])
-        waypoints.append([gates[0][0] - 0.1, gates[0][1], z_low])
-        waypoints.append(
-            [
-                (gates[0][0] + gates[1][0]) / 2 - 0.7,
-                (gates[0][1] + gates[1][1]) / 2 - 0.3,
-                (z_low + z_high) / 2,
-            ]
+        time = 0.0
+
+        waypoints.append(ms.Waypoint(
+            time=time,
+            position=initial_obs[0:3],
+            velocity=initial_obs[6:9],
+        ))
+
+        for gate_pos, gate_rpy in zip(gates_pos, gates_rpy):
+            theta = gate_rpy[2]
+            rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+            offset = np.zeros(3)
+            offset[:2] = rotation @ np.array([0, 0.15])
+
+            gate_front = gate_pos - offset
+            time += np.linalg.norm(gate_front - waypoints[-1].position) / speed
+            waypoints.append(ms.Waypoint(
+                time=time,
+                position=gate_front,
+            ))
+
+            time += 0.3 / speed
+            gate_back = gate_pos + offset
+            waypoints.append(ms.Waypoint(
+                time=time,
+                position=gate_back,
+            ))
+
+        time += 1
+        waypoints.append(ms.Waypoint(
+            time=time,
+            position=waypoints[-1].position + 2 * offset,
+            velocity=np.zeros(3),
+        ))
+
+        polys = ms.generate_trajectory(
+            waypoints,
+            degree=8,
+            idx_minimized_orders=(3, 4),
+            num_continuous_orders=3,
+            algorithm="closed-form"
         )
-        waypoints.append(
-            [
-                (gates[0][0] + gates[1][0]) / 2 - 0.5,
-                (gates[0][1] + gates[1][1]) / 2 - 0.6,
-                (z_low + z_high) / 2,
-            ]
-        )
-        waypoints.append([gates[1][0] - 0.3, gates[1][1] - 0.2, z_high])
-        waypoints.append([gates[1][0] + 0.2, gates[1][1] + 0.2, z_high])
-        waypoints.append([gates[2][0], gates[2][1] - 0.4, z_low])
-        waypoints.append([gates[2][0], gates[2][1] + 0.1, z_low])
-        waypoints.append([gates[2][0], gates[2][1] + 0.1, z_high + 0.2])
-        waypoints.append([gates[3][0], gates[3][1] + 0.1, z_high])
-        waypoints.append([gates[3][0], gates[3][1] - 0.1, z_high + 0.1])
-        waypoints.append(
-            [
-                self.initial_info["x_reference"][0],
-                self.initial_info["x_reference"][2],
-                self.initial_info["x_reference"][4],
-            ]
-        )
-        waypoints = np.array(waypoints)
-        tck, u = interpolate.splprep([waypoints[:, 0], waypoints[:, 1], waypoints[:, 2]], s=0.1)
+
+        t = np.linspace(0, time, np.round(time * self.CTRL_FREQ).astype(int))
+        pv = ms.compute_trajectory_derivatives(polys, t, 2)
+
+        self.traj = np.zeros((12, np.shape(pv)[1]))
+        self.traj[:3] = pv[0, ...].T
+        self.traj[3:6] = pv[1, ...].T
         self.waypoints = waypoints
 
-        steps = int(duration * self.CTRL_FREQ)
-        self.traj = np.zeros(shape=(12, steps))
-
-        t = np.linspace(0, 1, steps)
-        self.traj[:3] = np.array(interpolate.splev(t, tck))
         assert max(self.traj[2, :]) < 2.5, "Drone must stay below the ceiling"
-        return self.traj
+        return self.traj, None
 
 
 class PointPlanner:
@@ -107,7 +107,7 @@ class LinearPlanner:
         self.initial_info = initial_info
         self.CTRL_FREQ = CTRL_FREQ
 
-    def plan(self, gates, initial_obs, speed=2.5, acc=4.0):
+    def plan(self, initial_obs, speed=2.5, acc=5.0, gates=None):
         # Example: Hard-code waypoints through the gates. Obviously this is a crude way of
         # completing the challenge that is highly susceptible to noise and does not generalize at
         # all. It is meant solely as an example on how the drones can be controlled
@@ -135,6 +135,8 @@ class LinearPlanner:
         spacing = waypoints[:, 0, np.newaxis] + deltas.cumsum(axis=1)
 
         traj_list = [spacing[:, :-1].T]
+        next_gate_list = [np.ones((1, np.shape(traj_list[0])[0]))]
+
         waypoints[:, 0] = spacing[:, -1]
 
         # compute distances between waypoints for time allocation
@@ -143,6 +145,7 @@ class LinearPlanner:
 
         for i, steps in enumerate(steps_per_line):
             traj_list.append(np.linspace(waypoints[:,i], waypoints[:,i+1], steps, endpoint=False))
+            next_gate_list.append(np.ones((1, steps)) * ((i+1)//2+1))
 
         # append last point to allow deceleration
         i_speed = np.linspace(speed, 0, np.round(speed / (acc/2) * self.CTRL_FREQ).astype(int))
@@ -150,13 +153,93 @@ class LinearPlanner:
         deltas = direction[:, np.newaxis] * i_speed[np.newaxis, :] / self.CTRL_FREQ
         spacing = waypoints[:, -1, np.newaxis] + deltas.cumsum(axis=1)
         traj_list.append(spacing[:, 1:].T)
+        next_gate_list.append(np.ones((1, np.shape(traj_list[-1])[0])) * ((i+1)//2+1))
 
         traj = np.vstack(traj_list).T
+        next_gate = np.hstack(next_gate_list)
 
         self.traj = np.zeros((12, np.shape(traj)[1]))
         self.traj[:3] = traj
         self.waypoints = waypoints
 
         assert max(self.traj[2, :]) < 2.5, "Drone must stay below the ceiling"
-        return self.traj
+        return self.traj, next_gate
+
+
+class PolynomialPlanner:
+    def __init__(self, initial_info, CTRL_FREQ):
+        self.initial_info = initial_info
+        self.CTRL_FREQ = CTRL_FREQ
+        self.waypoints = list()
+
+    def get_time_from_last_waypoint(self, waypoint, speed):
+        return np.linalg.norm(waypoint - self.waypoints[-1].position) / speed
+
+    def plan(self, initial_obs, speed=2.5, gates=None):
+        gates_pos = self.initial_info['gates.pos']
+        gates_rpy = self.initial_info['gates.rpy']
+
+        time = 0.0
+        self.waypoints = list()
+
+        self.waypoints.append(ms.Waypoint(
+            time=time,
+            position=initial_obs[0:3],
+            velocity=initial_obs[6:9],
+        ))
+
+        for gate_pos, gate_rpy in zip(gates_pos, gates_rpy):
+            theta = gate_rpy[2]
+            rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+            offset = np.zeros(3)
+            offset[:2] = rotation @ np.array([0, 0.15])
+
+            # gate_front = gate_pos - offset
+            # time += self.get_time_from_last_waypoint(gate_front, speed)
+            # waypoints.append(ms.Waypoint(
+            #     time=time,
+            #     position=gate_front,
+            # ))
+            #
+
+            # gate_back = gate_pos + offset
+            # time += self.get_time_from_last_waypoint(gate_back, speed)
+            # waypoints.append(ms.Waypoint(
+            #     time=time,
+            #     position=gate_back,
+            # ))
+
+            time += self.get_time_from_last_waypoint(gate_pos, speed)
+            self.waypoints.append(ms.Waypoint(
+                time=time,
+                position=gate_pos,
+            ))
+
+
+        final_pos = self.waypoints[-1].position + 10 * offset
+        time += self.get_time_from_last_waypoint(final_pos, speed/2)
+        self.waypoints.append(ms.Waypoint(
+            time=time,
+            position=final_pos,
+            velocity=np.zeros(3),
+        ))
+
+        polys = ms.generate_trajectory(
+            self.waypoints,
+            degree=8,
+            idx_minimized_orders=(3, 4,),
+            num_continuous_orders=3,
+            algorithm="closed-form"
+        )
+
+        t = np.linspace(0, time, np.round(time*self.CTRL_FREQ).astype(int))
+        pv = ms.compute_trajectory_derivatives(polys, t, 2)
+
+
+        self.traj = np.zeros((12, np.shape(pv)[1]))
+        self.traj[:3] = pv[0, ...].T
+        self.traj[3:6] = pv[1, ...].T
+
+        assert max(self.traj[2, :]) < 2.5, "Drone must stay below the ceiling"
+        return self.traj, None
 

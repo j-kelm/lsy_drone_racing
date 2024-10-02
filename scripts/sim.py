@@ -129,8 +129,8 @@ def simulate(
     # Close the environment
     if config.sim.save_video:
         video_stream.write(env.render()[...,::-1])  # rgb to opencv bgr
+        video_stream.release()
     env.close()
-    video_stream.release()
     return ep_times
 
 

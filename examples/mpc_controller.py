@@ -158,6 +158,11 @@ class MPC:
         x_init = opti.parameter(nx, 1)
         # Reference (equilibrium point or trajectory, last step for terminal cost).
         x_ref = opti.parameter(nx, T + 1)
+        # Q cost matrix over horizon
+        Q = opti.parameter(nx, T + 1)
+        # R cost matrix over horizon
+        R = opti.parameter(nx, T + 1)
+
         # Add slack variables
         state_slack = opti.variable(len(self.state_constraints_soft))
         input_slack = opti.variable(len(self.input_constraints_soft))
@@ -171,15 +176,15 @@ class MPC:
                               u=u_var[:, i],
                               Xr=x_ref[:, i],
                               Ur=np.zeros((nu, 1)),
-                              Q=self.Q,
-                              R=self.R)['l']
+                              Q=Q[..., i],
+                              R=R[..., i])['l']
         # Terminal cost.
         cost += cost_func(x=x_var[:, -1],
                           u=np.zeros((nu, 1)),
                           Xr=x_ref[:, -1],
                           Ur=np.zeros((nu, 1)),
-                          Q=self.Q,
-                          R=self.R)['l']
+                          Q=Q[..., -1],
+                          R=R[..., -1])['l']
 
         # Constraints
         for i in range(self.T):
@@ -231,13 +236,15 @@ class MPC:
 
     def select_action(self,
                       obs,
+                      ref,
                       info=None
                       ):
         '''Solves nonlinear mpc problem to get next action.
 
         Args:
             obs (ndarray): Current state/observation.
-            info (dict): Current info
+            ref (ndarray): Current state reference to track
+            info (dict): Current info containing the reference,
 
         Returns:
             action (ndarray): Input/action to the task/env.

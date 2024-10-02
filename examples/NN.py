@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from triton.language import dtype
 
 device = "cuda:0"
 lr = 1.0e-4
@@ -23,7 +24,7 @@ model = torch.nn.Sequential(
 )
 model.to(device)
 
-if True:
+if False:
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -40,12 +41,18 @@ if True:
 
     torch.save(model.state_dict(), "output/modality.pth")
 
-state = torch.zeros(12)
-state[0:3] = torch.tensor([-2.5, 1.0, 0.525])
+model.load_state_dict(torch.load("output/modality.pth", weights_only=True))
+model.eval()
+
+nominal_state = torch.zeros(12)
+nominal_state[0:3] = torch.tensor([-2.5, 1.0, 0.525])
+
+noise = np.random.uniform(-2.5e-2, 2.5e-2, (100, nominal_state.size(0))).astype('f')
+state = nominal_state + noise
+
 with torch.no_grad():
     model.to('cpu')
-    model.eval()
-    result = model(state).reshape((1, 3, 33))
+    result = model(state).reshape((100, 3, 33))
     np.save("output/nn.npy", result.cpu().numpy())
 
 
