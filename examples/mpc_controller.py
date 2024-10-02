@@ -5,7 +5,7 @@ from termcolor import colored
 import casadi as cs
 import numpy as np
 
-from examples.mpc_utils import get_cost_weight_matrix, rk_discrete
+from examples.mpc_utils import rk_discrete
 
 
 class MPC:
@@ -63,8 +63,8 @@ class MPC:
         self.U_EQ = model.U_EQ
         self.dt = self.model.dt
         self.T = horizon
-        self.Q = get_cost_weight_matrix(self.q_mpc, self.model.nx)
-        self.R = get_cost_weight_matrix(self.r_mpc, self.model.nu)
+        self.q = np.repeat(np.array(q_mpc)[:, np.newaxis], self.T+1, axis=1)
+        self.r = np.repeat(np.array(r_mpc)[:, np.newaxis], self.T+1, axis=1)
 
         self.constraint_tol = constraint_tol
         self.soft_constraints = soft_constraints
@@ -105,6 +105,8 @@ class MPC:
 
 
     def compute_initial_guess(self, init_state, goal_states):
+        # maybe do not call this function at all and delete
+
         time_before = time.time()
         '''Use IPOPT to get an initial guess of the '''
         print(colored('Computing initial guess', 'green'))
@@ -158,10 +160,10 @@ class MPC:
         x_init = opti.parameter(nx, 1)
         # Reference (equilibrium point or trajectory, last step for terminal cost).
         x_ref = opti.parameter(nx, T + 1)
-        # Q cost matrix over horizon
-        Q = opti.parameter(nx, T + 1)
-        # R cost matrix over horizon
-        R = opti.parameter(nx, T + 1)
+        # q cost vector over horizon
+        q = opti.parameter(nx, T + 1)
+        # q cost vector over horizon
+        r = opti.parameter(nu, T + 1)
 
         # Add slack variables
         state_slack = opti.variable(len(self.state_constraints_soft))
@@ -176,15 +178,15 @@ class MPC:
                               u=u_var[:, i],
                               Xr=x_ref[:, i],
                               Ur=np.zeros((nu, 1)),
-                              Q=Q[..., i],
-                              R=R[..., i])['l']
+                              Q=q[:, i],
+                              R=r[:, i])['l']
         # Terminal cost.
         cost += cost_func(x=x_var[:, -1],
                           u=np.zeros((nu, 1)),
                           Xr=x_ref[:, -1],
                           Ur=np.zeros((nu, 1)),
-                          Q=Q[..., -1],
-                          R=R[..., -1])['l']
+                          Q=q[:, -1],
+                          R=r[:, -1])['l']
 
         # Constraints
         for i in range(self.T):
@@ -231,7 +233,9 @@ class MPC:
             'u_var': u_var,
             'x_init': x_init,
             'x_ref': x_ref,
-            'cost': cost
+            'cost': cost,
+            'q': q,
+            'r': r,
         }
 
     def select_action(self,
@@ -257,12 +261,28 @@ class MPC:
         u_var = opti_dict['u_var']  # optimization variables
         x_init = opti_dict['x_init']  # initial state
         x_ref = opti_dict['x_ref']  # reference state/trajectory
+        q = opti_dict['q']  # time dependant state cost matrix
+        r = opti_dict['r']  # time dependant input cost matrix
 
         # Assign the initial state.
         opti.set_value(x_init, obs)
         # Assign reference trajectory within horizon.
-        goal_states = self.to_horizon(goal_states=info["ref"])
+        goal_states = self.to_horizon(goal_states=ref)
         opti.set_value(x_ref, goal_states)
+
+        if "q" in info and info['q'] is not None:
+            # use provided cost matrix
+            opti.set_value(q, info['q'])
+        else:
+            # use default cost matrix
+            opti.set_value(q, self.q)
+
+        if "r" in info and info['r'] is not None:
+            # use provided cost matrix
+            opti.set_value(r, info['r'])
+        else:
+            # use default cost matrix
+            opti.set_value(r, self.r)
 
         # check for warm start solution
         if self.x_prev is None and self.u_prev is None:
@@ -272,9 +292,20 @@ class MPC:
                 opti.set_initial(x_var, x_guess)
                 opti.set_initial(u_var, u_guess) # Initial guess for optimization problem.
             elif self.warmstart:
-                print(colored(f'setting initial guess from reference', 'green'))
-                x_guess = goal_states
-                u_guess = np.tile(np.expand_dims(self.U_EQ, axis=1), (1, self.T))
+                if 'x_guess' in info and info['x_guess'] is not None:
+                    print(colored(f'setting initial state guess from info', 'green'))
+                    x_guess = info['x_guess']
+                else:
+                    print(colored(f'setting initial state guess from reference', 'green'))
+                    x_guess = goal_states
+
+                if 'u_guess' in info and info['u_guess'] is not None:
+                    print(colored(f'setting initial input guess from info', 'green'))
+                    u_guess = info['u_guess']
+                else:
+                    print(colored(f'setting initial input guess from reference', 'green'))
+                    u_guess = np.tile(np.expand_dims(self.U_EQ, axis=1), (1, self.T))
+
                 opti.set_initial(x_var, x_guess)
                 opti.set_initial(u_var, u_guess)
 

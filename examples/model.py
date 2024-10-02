@@ -136,11 +136,11 @@ class Model:
         self.U_EQ = np.ones(nu) * u_eq / nu
 
         # Define cost (quadratic form).
-        Q = cs.MX.sym('Q', nx, nx)
-        R = cs.MX.sym('R', nu, nu)
+        q = cs.MX.sym('Q', nx)
+        r = cs.MX.sym('R', nu)
         Xr = cs.MX.sym('Xr', nx, 1)
         Ur = cs.MX.sym('Ur', nu, 1)
-        cost_func = 0.5 * (X - Xr).T @ Q @ (X - Xr) + 0.5 * (U - Ur).T @ R @ (U - Ur)
+        cost_func = 0.5 * (X - Xr).T @ cs.diag(q) @ (X - Xr) + 0.5 * (U - Ur).T @ cs.diag(r) @ (U - Ur)
         # Define dynamics and cost dictionaries.
         dynamics = {'dyn_eqn': X_dot, 'obs_eqn': Y, 'vars': {'X': X, 'U': U}}
         cost = {
@@ -150,8 +150,8 @@ class Model:
                 'U': U,
                 'Xr': Xr,
                 'Ur': Ur,
-                'Q': Q,
-                'R': R
+                'Q': q,
+                'R': r
             }
         }
         # Additional params to cache

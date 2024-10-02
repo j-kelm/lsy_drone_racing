@@ -39,6 +39,7 @@ import yaml
 from sympy.abc import lamda
 
 from lsy_drone_racing.controller import BaseController
+from lsy_drone_racing.utils.utils import draw_trajectory, draw_segment_of_traj
 
 from examples.planner import Planner, FilePlanner, LinearPlanner, PolynomialPlanner
 from examples.mpc_controller import MPC
@@ -74,11 +75,11 @@ class Controller(BaseController):
 
         path = "config/mpc.yaml"
         with open(path, "r") as file:
-            config = munchify(yaml.safe_load(file))
+            self.config = munchify(yaml.safe_load(file))
 
         # initialize planner
         self.planner = PolynomialPlanner(initial_info=initial_info, CTRL_FREQ=self.CTRL_FREQ)
-        self.ref, next_gate = self.planner.plan(initial_obs=self.initial_obs, speed=2.0)
+        self.ref = self.planner.plan(initial_obs=self.initial_obs, speed=1.5)
 
         # Get model and constraints
         self.model = Model(info=None)
@@ -93,14 +94,12 @@ class Controller(BaseController):
         for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
             self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.15)
 
-        self.ctrl = MPC(model=self.model, horizon=int(config.mpc.horizon_sec * self.CTRL_FREQ),
-                                   q_mpc=config.mpc.q, r_mpc=config.mpc.r, soft_penalty=1e5)
+        self.ctrl = MPC(model=self.model, horizon=int(self.config.mpc.horizon_sec * self.CTRL_FREQ),
+                        q_mpc=self.config.mpc.q, r_mpc=self.config.mpc.r, soft_penalty=1e5)
 
         self.state = None
         self.state_history = []
         self.action_history = []
-
-        # TODO: draw reference
 
     def compute_control(
         self, obs: npt.NDArray[np.floating], info: dict | None = None
@@ -120,7 +119,15 @@ class Controller(BaseController):
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
 
-        remaining_ref = self.ref[:, info['step']:] if info['step'] < self.ref.shape[1] else self.ref[:, -1:]
+        # Slice trajectory for horizon steps, if not long enough, repeat last state.
+        start = info['step']
+        end = start + min(self.ctrl.T + 1, self.ref.shape[-1])
+        remain = max(0, self.ctrl.T + 1 - (end - start))
+        remaining_ref = np.concatenate([
+            self.ref[:, start:end],
+            np.tile(self.ref[:, -1:], (1, remain))
+        ], -1)
+
         pos = obs[0:3]
         rpy = obs[3:6]
         vel = obs[6:9]
@@ -128,12 +135,12 @@ class Controller(BaseController):
         self.state = np.concatenate([pos, vel, rpy, body_rates])
 
         action, next_state = self.ctrl.select_action(obs=self.state,
-                                                     ref=remaining_ref,
+                                                     ref=remaining_ref[:12],
                                                      info={
-                                                         "state_guess": None,
-                                                         "action_guess": None,
-                                                         "horizon_q": None,
-                                                         "horizon_r": None,
+                                                         "x_guess": None,
+                                                         "u_guess": None,
+                                                         "q": np.outer(self.config.mpc.q, remaining_ref[13]),
+                                                         "r": None,
                                                      })
         target_pos = next_state[:3]
         target_vel = next_state[3:6]

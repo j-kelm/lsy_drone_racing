@@ -180,6 +180,7 @@ class PolynomialPlanner:
         gates_rpy = self.initial_info['gates.rpy']
 
         time = 0.0
+
         self.waypoints = list()
 
         self.waypoints.append(ms.Waypoint(
@@ -194,27 +195,11 @@ class PolynomialPlanner:
             offset = np.zeros(3)
             offset[:2] = rotation @ np.array([0, 0.15])
 
-            # gate_front = gate_pos - offset
-            # time += self.get_time_from_last_waypoint(gate_front, speed)
-            # waypoints.append(ms.Waypoint(
-            #     time=time,
-            #     position=gate_front,
-            # ))
-            #
-
-            # gate_back = gate_pos + offset
-            # time += self.get_time_from_last_waypoint(gate_back, speed)
-            # waypoints.append(ms.Waypoint(
-            #     time=time,
-            #     position=gate_back,
-            # ))
-
             time += self.get_time_from_last_waypoint(gate_pos, speed)
             self.waypoints.append(ms.Waypoint(
                 time=time,
                 position=gate_pos,
             ))
-
 
         final_pos = self.waypoints[-1].position + 10 * offset
         time += self.get_time_from_last_waypoint(final_pos, speed/2)
@@ -232,14 +217,30 @@ class PolynomialPlanner:
             algorithm="closed-form"
         )
 
+        self.waypoint_times = [waypoint.time for waypoint in self.waypoints]
+        self.waypoint_pos = [waypoint.position for waypoint in self.waypoints]
+
+        progress_f = interpolate.interp1d(self.waypoint_times, range(len(self.waypoints)))
+
+
         t = np.linspace(0, time, np.round(time*self.CTRL_FREQ).astype(int))
+
         pv = ms.compute_trajectory_derivatives(polys, t, 2)
 
+        progress = progress_f(t)
 
-        self.traj = np.zeros((12, np.shape(pv)[1]))
+        next_gate_idx = np.floor(progress)
+        gate_prox = np.empty((len(self.waypoints), t.shape[0]))
+        for i, time in enumerate(self.waypoint_times):
+            gate_prox[i, :] = np.exp(-((t-time)/0.25)**2)
+
+        gate_prox = 1 + 4 * np.max(gate_prox, axis=0)
+
+        self.traj = np.zeros((14, np.shape(pv)[1]))
         self.traj[:3] = pv[0, ...].T
         self.traj[3:6] = pv[1, ...].T
+        self.traj[12] = next_gate_idx
+        self.traj[13] = gate_prox
 
         assert max(self.traj[2, :]) < 2.5, "Drone must stay below the ceiling"
-        return self.traj, None
-
+        return self.traj
