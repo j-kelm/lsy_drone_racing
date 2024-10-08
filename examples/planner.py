@@ -170,18 +170,124 @@ class PolynomialPlanner:
     def __init__(self, initial_info, CTRL_FREQ):
         self.initial_info = initial_info
         self.CTRL_FREQ = CTRL_FREQ
+        self.waypoints_base = list()  # without helper waypoints
+        self.waypoints_full = list()  # with helper waypoints
+
+    @staticmethod
+    def get_time_from_last_waypoint(waypoint, prev_list, speed):
+        return np.linalg.norm(waypoint - prev_list[-1].position) / speed
+
+    def plan(self, initial_obs, speed=2.5, gate_index=0):
+        gates_pos = self.initial_info['gates.pos']
+        gates_rpy = self.initial_info['gates.rpy']
+
+        self.waypoints_base = list()  # without helper waypoints
+        self.waypoints_full = list()  # with helper waypoints
+
+        time = 0.0
+
+        self.waypoints_base.append(ms.Waypoint(
+            time=time,
+            position=initial_obs[0:3],
+            velocity=initial_obs[6:9],
+        ))
+        self.waypoints_full.append(ms.Waypoint(
+            time=time,
+            position=initial_obs[0:3],
+            velocity=initial_obs[6:9],
+        ))
+
+        for gate_pos, gate_rpy in zip(gates_pos[gate_index:], gates_rpy[gate_index:]):
+            time += self.get_time_from_last_waypoint(gate_pos, self.waypoints_full, speed)
+            self.waypoints_base.append(ms.Waypoint(
+                time=time,
+                position=gate_pos,
+            ))
+
+            theta = gate_rpy[2]
+            rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+            offset = np.zeros(3)
+            offset[:2] = rotation @ np.array([0, 0.1])
+
+            gate_front_pos = gate_pos - offset
+            gate_back_pos = gate_pos + offset
+
+            self.waypoints_full.append(ms.Waypoint(
+                time=time-self.get_time_from_last_waypoint(gate_front_pos, self.waypoints_base, speed),
+                position=gate_front_pos,
+            ))
+
+            self.waypoints_full.append(ms.Waypoint(
+                time=time+self.get_time_from_last_waypoint(gate_back_pos, self.waypoints_base, speed),
+                position=gate_back_pos,
+            ))
+
+        final_pos = self.waypoints_base[-1].position + 15 * offset
+        time += self.get_time_from_last_waypoint(final_pos, self.waypoints_base, speed)
+        self.waypoints_base.append(ms.Waypoint(
+            time=time,
+            position=final_pos,
+            velocity=np.zeros(3),
+        ))
+        self.waypoints_full.append(ms.Waypoint(
+            time=time,
+            position=final_pos,
+            velocity=np.zeros(3),
+        ))
+
+        polys = ms.generate_trajectory(
+            self.waypoints_full,
+            degree=8,
+            idx_minimized_orders=(3, 4,),
+            num_continuous_orders=3,
+            algorithm="closed-form"
+        )
+
+        self.waypoint_times = [waypoint.time for waypoint in self.waypoints_base]
+        self.waypoint_pos = [waypoint.position for waypoint in self.waypoints_base]
+
+        progress_f = interpolate.interp1d(self.waypoint_times, range(len(self.waypoints_base)))
+
+
+        t = np.linspace(0, time, np.round(time*self.CTRL_FREQ).astype(int))
+
+        pv = ms.compute_trajectory_derivatives(polys, t, 2)
+
+        # timesteps close to gate are more important
+        progress = progress_f(t)
+        next_gate_idx = np.floor(progress)
+        gate_prox = np.empty((len(self.waypoints_base), t.shape[0]))
+        for i, time in enumerate(self.waypoint_times):
+            gate_prox[i, :] = np.exp(-((t-time)/0.25)**2)
+
+        gate_prox = 1 + 5 * np.max(gate_prox, axis=0)
+
+        self.traj = np.zeros((14, np.shape(pv)[1]))
+        self.traj[:3] = pv[0, ...].T
+        self.traj[3:6] = pv[1, ...].T
+        self.traj[12] = next_gate_idx
+        self.traj[13] = gate_prox
+
+        assert max(self.traj[2, :]) < 2.5, "Drone must stay below the ceiling"
+        return self.traj
+
+
+class MinsnapPlanner:
+    def __init__(self, initial_info, CTRL_FREQ):
+        self.initial_info = initial_info
+        self.CTRL_FREQ = CTRL_FREQ
         self.waypoints = list()
 
     def get_time_from_last_waypoint(self, waypoint, speed):
         return np.linalg.norm(waypoint - self.waypoints[-1].position) / speed
 
-    def plan(self, initial_obs, speed=2.5, gates=None):
+    def plan(self, initial_obs, speed=2.5, gate_index=0):
         gates_pos = self.initial_info['gates.pos']
         gates_rpy = self.initial_info['gates.rpy']
 
-        time = 0.0
-
         self.waypoints = list()
+
+        time = 0.0
 
         self.waypoints.append(ms.Waypoint(
             time=time,
@@ -189,20 +295,22 @@ class PolynomialPlanner:
             velocity=initial_obs[6:9],
         ))
 
-        for gate_pos, gate_rpy in zip(gates_pos, gates_rpy):
+        for gate_pos, gate_rpy in zip(gates_pos[gate_index:], gates_rpy[gate_index:]):
             theta = gate_rpy[2]
             rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
             offset = np.zeros(3)
-            offset[:2] = rotation @ np.array([0, 0.15])
+            offset[:2] = rotation @ np.array([0, speed])
 
             time += self.get_time_from_last_waypoint(gate_pos, speed)
             self.waypoints.append(ms.Waypoint(
                 time=time,
                 position=gate_pos,
+                velocity=offset,
             ))
 
-        final_pos = self.waypoints[-1].position + 10 * offset
-        time += self.get_time_from_last_waypoint(final_pos, speed/2)
+
+        final_pos = self.waypoints[-1].position + 2.0 * offset
+        time += self.get_time_from_last_waypoint(final_pos, speed)
         self.waypoints.append(ms.Waypoint(
             time=time,
             position=final_pos,
@@ -227,14 +335,14 @@ class PolynomialPlanner:
 
         pv = ms.compute_trajectory_derivatives(polys, t, 2)
 
+        # timesteps close to gate are more important
         progress = progress_f(t)
-
         next_gate_idx = np.floor(progress)
         gate_prox = np.empty((len(self.waypoints), t.shape[0]))
         for i, time in enumerate(self.waypoint_times):
             gate_prox[i, :] = np.exp(-((t-time)/0.25)**2)
 
-        gate_prox = 1 + 4 * np.max(gate_prox, axis=0)
+        gate_prox = 1 + 3 * np.max(gate_prox, axis=0)
 
         self.traj = np.zeros((14, np.shape(pv)[1]))
         self.traj[:3] = pv[0, ...].T

@@ -1,5 +1,5 @@
 [sim]
-physics = "pyb"                                   # pyb: PyBullet, dyn: Mathematical dynamics model, TODO: Complete the list
+physics = "pyb_gnd_drag_dw"                                   # pyb: PyBullet, dyn: Mathematical dynamics model, TODO: Complete the list
 camera_view = [5.0, -40.0, -40.0, 0.5, -1.0, 0.8]
 sim_freq = 1000                                    # Simulation frequency, in Hz
 ctrl_freq = 500                                   # Controller frequency, in Hz. This frequency is used to simulate the onboard controller, NOT for the environment's step function

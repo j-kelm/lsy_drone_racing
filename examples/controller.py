@@ -36,15 +36,11 @@ from matplotlib.ticker import FormatStrFormatter
 
 from munch import munchify
 import yaml
-from sympy.abc import lamda
 
 from lsy_drone_racing.controller import BaseController
 from lsy_drone_racing.utils.utils import draw_trajectory, draw_segment_of_traj
 
-from examples.planner import Planner, FilePlanner, LinearPlanner, PolynomialPlanner
-from examples.mpc_controller import MPC
-from examples.model import Model
-from examples.constraints import obstacle_constraints, gate_constraints
+from examples.control import Control
 
 
 class Controller(BaseController):
@@ -71,35 +67,16 @@ class Controller(BaseController):
         self.initial_obs = initial_obs
         self.initial_info = initial_info
 
+        self.ctrl = Control(initial_obs, initial_info)
+
         self.episode_reset()
 
-        path = "config/mpc.yaml"
-        with open(path, "r") as file:
-            self.config = munchify(yaml.safe_load(file))
-
-        # initialize planner
-        self.planner = PolynomialPlanner(initial_info=initial_info, CTRL_FREQ=self.CTRL_FREQ)
-        self.ref = self.planner.plan(initial_obs=self.initial_obs, speed=1.5)
-
-        # Get model and constraints
-        self.model = Model(info=None)
-        self.model.input_constraints_soft += [lambda u: 0.03 - u, lambda u: u - 0.145] # 0.03 <= thrust <= 0.145
-        self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
-        # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
-        # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
-
-        for obstacle_pos in self.initial_info['obstacles.pos']:
-            self.model.state_constraints_soft += obstacle_constraints(obstacle_pos, r=0.17)
-
-        for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
-            self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.15)
-
-        self.ctrl = MPC(model=self.model, horizon=int(self.config.mpc.horizon_sec * self.CTRL_FREQ),
-                        q_mpc=self.config.mpc.q, r_mpc=self.config.mpc.r, soft_penalty=1e5)
-
-        self.state = None
         self.state_history = []
         self.action_history = []
+
+        draw_trajectory(initial_info, self.ctrl.planner.waypoint_pos,
+                        self.ctrl.ref[0], self.ctrl.ref[1], self.ctrl.ref[2],
+                        num_plot_points=200)
 
     def compute_control(
         self, obs: npt.NDArray[np.floating], info: dict | None = None
@@ -119,43 +96,28 @@ class Controller(BaseController):
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
 
-        # Slice trajectory for horizon steps, if not long enough, repeat last state.
-        start = info['step']
-        end = start + min(self.ctrl.T + 1, self.ref.shape[-1])
-        remain = max(0, self.ctrl.T + 1 - (end - start))
-        remaining_ref = np.concatenate([
-            self.ref[:, start:end],
-            np.tile(self.ref[:, -1:], (1, remain))
-        ], -1)
-
         pos = obs[0:3]
         rpy = obs[3:6]
         vel = obs[6:9]
         body_rates = obs[9:12]
-        self.state = np.concatenate([pos, vel, rpy, body_rates])
+        state = np.concatenate([pos, vel, rpy, body_rates])
 
-        action, next_state = self.ctrl.select_action(obs=self.state,
-                                                     ref=remaining_ref[:12],
-                                                     info={
-                                                         "x_guess": None,
-                                                         "u_guess": None,
-                                                         "q": np.outer(self.config.mpc.q, remaining_ref[13]),
-                                                         "r": None,
-                                                     })
+        if len(self.state_history):
+            draw_segment_of_traj(self.initial_info, self.state_history[-1][0:3], pos, [0, 1, 0, 1])
+
+        inputs, next_state, outputs = self.ctrl.compute_control(state, info)
+
         target_pos = next_state[:3]
         target_vel = next_state[3:6]
-
         target_yaw = next_state[8]
-
-        # calculate target acc
-        y = np.array(self.model.symbolic.g_func(x=next_state, u=action)['g']).flatten()
-        target_acc = y[6:9]
-        target_rpy_rates = y[12:15]
-
-        self.state_history.append(self.state)
-        self.action_history.append(action)
+        target_acc = outputs[6:9]
+        target_rpy_rates = outputs[12:15]
 
         action = np.hstack([target_pos, target_vel, target_acc, target_yaw, target_rpy_rates])
+
+        self.state_history.append(state)
+        self.action_history.append(action)
+
         return action
 
     def episode_reset(self):
@@ -163,17 +125,17 @@ class Controller(BaseController):
         self.state_history = []
 
     def save_episode(self, file):
-        mpc_states = np.swapaxes(np.array(self.ctrl.results_dict['horizon_states']), 0, 1)
-        mpc_inputs = np.swapaxes(np.array(self.ctrl.results_dict['horizon_inputs']), 0, 1)
+        mpc_states = np.swapaxes(np.array(self.ctrl.ctrl.results_dict['horizon_states']), 0, 1)
+        mpc_inputs = np.swapaxes(np.array(self.ctrl.ctrl.results_dict['horizon_inputs']), 0, 1)
 
-        np.savez(file, mpc_states=mpc_states, mpc_inputs=mpc_inputs, mpc_reference=self.ref)
+        np.savez(file, mpc_states=mpc_states, mpc_inputs=mpc_inputs, mpc_reference=self.ctrl.ref)
 
     def episode_learn(self):
         # use this function to plot episode data instead of learning
         file_path = "output/states.npz"
         self.save_episode(file_path)
         history = np.load(file_path)
-        plot_3d(history)
+        # plot_3d(history)
 
     def reset(self):
         pass

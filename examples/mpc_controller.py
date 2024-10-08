@@ -349,6 +349,9 @@ class MPC:
         self.u_prev = u_val
         self.results_dict['horizon_states'].append(deepcopy(self.x_prev))
         self.results_dict['horizon_inputs'].append(deepcopy(self.u_prev))
+        y = np.array(self.model.g_func(x=self.x_prev[:, 1:],
+                                                u=self.u_prev)['g'])
+        self.results_dict['horizon_outputs'].append(deepcopy(y))
         self.results_dict['goal_states'].append(deepcopy(goal_states))
         if self.solver == 'ipopt':
             self.results_dict['t_wall'].append(opti.stats()['t_wall_total'])
@@ -356,14 +359,16 @@ class MPC:
         if u_val.ndim > 1:
             action = u_val[:, 0]
             state = x_val[:, 1]
+            output = y[:, 0]
         else:
             action = np.array([u_val[0]])
             state = np.array([x_val[1]])
+            output = np.array([y[0]])
         self.prev_action = action
         self.prev_state = state
         time_after = time.time()
         print('MPC select_action time: ', time_after - time_before)
-        return action, state
+        return action, state, output
 
     def to_horizon(self, goal_states):
         '''Constructs reference states along mpc horizon.(nx, T+1).'''
@@ -387,6 +392,7 @@ class MPC:
                              'action': [],
                              'horizon_inputs': [],
                              'horizon_states': [],
+                             'horizon_outputs': [],
                              'goal_states': [],
                              'frames': [],
                              'state_mse': [],
