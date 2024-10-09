@@ -71,11 +71,11 @@ class MinsnapPlanner:
 
         gate_prox = np.max(gate_prox, axis=0)
 
-        self.ref = np.zeros((14, np.shape(pv)[1]))
+        self.ref = np.zeros((16, np.shape(pv)[1]))
         self.ref[:3] = pv[0, ...].T
         self.ref[3:6] = pv[1, ...].T
-        self.ref[12] = next_gate_idx
-        self.ref[13] = gate_prox
+        self.next_gate_idx = next_gate_idx
+        self.gate_prox = gate_prox
 
         assert max(self.ref[2, :]) < 2.5, "Drone must stay below the ceiling"
         assert min(self.ref[2, :]) > 0.0, "Drone must stay above the ground"

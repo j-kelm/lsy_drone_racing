@@ -48,23 +48,27 @@ class Control:
 
         # Get model and constraints
         self.model = Model(info=None)
-        self.model.input_constraints_soft += [lambda u: 0.03 - u, lambda u: u - 0.145] # 0.03 <= thrust <= 0.145
+        self.model.state_constraints_soft += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
         self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 
         for obstacle_pos in self.initial_info['obstacles.pos']:
-            self.model.state_constraints_soft += obstacle_constraints(obstacle_pos, r=0.17)
+            self.model.state_constraints_soft += obstacle_constraints(obstacle_pos, r=0.16)
 
         for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
-            self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.15)
+            # self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.14)
+            continue
 
         self.ctrl = MPC(model=self.model,
                         horizon=int(self.config.mpc.horizon_sec * self.CTRL_FREQ),
                         q_mpc=self.config.mpc.q, r_mpc=self.config.mpc.r,
-                        soft_penalty=1e5,
+                        soft_penalty=1e6,
                         err_on_fail=True,
+                        max_iter=500,
         )
+
+        self.forces = self.ctrl.U_EQ
 
         self.state = None
 
@@ -86,28 +90,41 @@ class Control:
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
 
+        state = np.concatenate([state, self.forces])
+
         # Slice trajectory for horizon steps, if not long enough, repeat last state.
-        start = info['step']
-        end = min(start + self.ctrl.T + 1, self.planner.ref.shape[-1])
-        remain = max(0, self.ctrl.T + 1 - (end - start))
-        remaining_ref = np.concatenate([
-            self.planner.ref[:, start:end],
-            np.tile(self.planner.ref[:, -1:], (1, remain))
-        ], -1)
+        remaining_ref = self.to_horizon(self.planner.ref, info['step'], self.ctrl.T + 1)
+        gate_prox = self.to_horizon(self.planner.gate_prox, info['step'], self.ctrl.T + 1)
 
         q_pos = np.zeros_like(self.config.mpc.q)
         q_pos[0:3] = self.config.mpc.q[0:3]
-        info['q'] = np.array(self.config.mpc.q)[:, np.newaxis] + 3.0 * np.outer(q_pos, remaining_ref[13])
+        info['q'] = np.array(self.config.mpc.q)[:, np.newaxis] + 3.0 * np.outer(q_pos, gate_prox)
+        # info['r'] = np.array(self.config.mpc.r)[:, np.newaxis] + 3.0 * np.outer(self.config.mpc.r, gate_prox)
+        info['u_guess'] = np.tile(np.expand_dims(np.zeros(4), axis=1), (1, self.ctrl.T))
 
         try:
             inputs, next_state, outputs = self.ctrl.select_action(obs=state,
-                                                                  ref=remaining_ref[:12],
+                                                                  ref=remaining_ref,
                                                                   info=info,
                                                                   err_on_fail=True)
         except RuntimeError: # re-plan on fail
             inputs, next_state, outputs = self.ctrl.select_action(obs=state,
-                                                                  ref=remaining_ref[:12],
+                                                                  ref=remaining_ref,
                                                                   info=info,
                                                                   err_on_fail=False)
 
+        self.forces = next_state[12:16]
+
         return inputs, next_state, outputs
+
+    @staticmethod
+    def to_horizon(series, step, horizon):
+        start = step
+        end = min(start + horizon, series.shape[-1])
+        remain = max(0, horizon - (end - start))
+        remaining_series = np.concatenate([
+            series[..., start:end],
+            np.tile(series[..., -1:], (1, remain)).squeeze()
+        ], -1)
+
+        return remaining_series
