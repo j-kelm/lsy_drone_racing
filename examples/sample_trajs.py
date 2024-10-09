@@ -71,23 +71,22 @@ if __name__ == "__main__":
 
         # loop mpc through entire track
         for step in range(np.shape(ctrl.ref)[1]):
-            state_history.append(state)
             info = {
                 'step': step,
             }
             inputs, next_state, outputs = ctrl.compute_control(state, info)
-            output_history.append(outputs)
-            input_history.append(inputs)
 
         result = {
-            'gates.pos': gates_pos,
-            'gates.rpy': gates_rpy,
-            'obstacles.pos': obstacles_pos,
-            'full_reference': ctrl.ref[:12],
-            'state_history': np.array(state_history).T,
-            'action_history': np.array(action_history).T,
-            'input_history': np.array(input_history).T,
-            'next_gate': ctrl.ref[12],
+            'gates.pos': gates_pos,  # ndarray (gates, 3)
+            'gates.rpy': gates_rpy,  # ndarray (gates, 3)
+            'obstacles.pos': obstacles_pos,  # ndarray (obstacles, 3)
+            'track_reference': ctrl.ref[:12],  # ndarray (states, steps)
+            'next_gate': ctrl.ref[12],  # ndarray (1, steps)
+            'x_horizons': np.array(state_history).T,  # ndarray (steps, states, horizon + 1)
+            'y_horizons': np.array(output_history).T,  # ndarray (steps, outputs, horizon)
+            'u_horizons': np.array(ctrl.ctrl.results_dict['goal_states']),  # ndarray (steps, inputs, horizon)
+            'ref_horizons': np.array(ctrl.ctrl.results_dict['goal_states']),
+            'initial_states': ctrl.ctrl.results_dict['horizon_states'][0],
         }
 
         results.append(result)

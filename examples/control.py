@@ -6,7 +6,7 @@ import numpy.typing as npt
 from munch import munchify
 import yaml
 
-from examples.planner import Planner, FilePlanner, LinearPlanner, PolynomialPlanner, MinsnapPlanner
+from examples.planner import MinsnapPlanner
 from examples.mpc_controller import MPC
 from examples.model import Model
 from examples.constraints import obstacle_constraints, gate_constraints
@@ -40,8 +40,11 @@ class Control:
             self.config = munchify(yaml.safe_load(file))
 
         # initialize planner
-        self.planner = MinsnapPlanner(initial_info=initial_info, CTRL_FREQ=self.CTRL_FREQ)
-        self.ref = self.planner.plan(initial_obs=self.initial_obs, speed=1.5, gate_index=initial_info['gate_idx'])
+        self.planner = MinsnapPlanner(initial_info=initial_info,
+                                      initial_obs=self.initial_obs,
+                                      speed=1.5,
+                                      gate_index=initial_info['gate_idx'],
+        )
 
         # Get model and constraints
         self.model = Model(info=None)
@@ -56,8 +59,12 @@ class Control:
         for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
             self.model.state_constraints_soft += gate_constraints(gate_pos, gate_rpy[2], r=0.15)
 
-        self.ctrl = MPC(model=self.model, horizon=int(self.config.mpc.horizon_sec * self.CTRL_FREQ),
-                        q_mpc=self.config.mpc.q, r_mpc=self.config.mpc.r, soft_penalty=1e5)
+        self.ctrl = MPC(model=self.model,
+                        horizon=int(self.config.mpc.horizon_sec * self.CTRL_FREQ),
+                        q_mpc=self.config.mpc.q, r_mpc=self.config.mpc.r,
+                        soft_penalty=1e5,
+                        err_on_fail=True,
+        )
 
         self.state = None
 
@@ -81,17 +88,26 @@ class Control:
 
         # Slice trajectory for horizon steps, if not long enough, repeat last state.
         start = info['step']
-        end = min(start + self.ctrl.T + 1, self.ref.shape[-1])
+        end = min(start + self.ctrl.T + 1, self.planner.ref.shape[-1])
         remain = max(0, self.ctrl.T + 1 - (end - start))
         remaining_ref = np.concatenate([
-            self.ref[:, start:end],
-            np.tile(self.ref[:, -1:], (1, remain))
+            self.planner.ref[:, start:end],
+            np.tile(self.planner.ref[:, -1:], (1, remain))
         ], -1)
 
-        info['q'] = np.outer(self.config.mpc.q, remaining_ref[13])
+        q_pos = np.zeros_like(self.config.mpc.q)
+        q_pos[0:3] = self.config.mpc.q[0:3]
+        info['q'] = np.array(self.config.mpc.q)[:, np.newaxis] + 3.0 * np.outer(q_pos, remaining_ref[13])
 
-        inputs, next_state, outputs = self.ctrl.select_action(obs=state,
-                                                     ref=remaining_ref[:12],
-                                                     info=info)
+        try:
+            inputs, next_state, outputs = self.ctrl.select_action(obs=state,
+                                                                  ref=remaining_ref[:12],
+                                                                  info=info,
+                                                                  err_on_fail=True)
+        except RuntimeError: # re-plan on fail
+            inputs, next_state, outputs = self.ctrl.select_action(obs=state,
+                                                                  ref=remaining_ref[:12],
+                                                                  info=info,
+                                                                  err_on_fail=False)
 
         return inputs, next_state, outputs

@@ -75,7 +75,7 @@ class Controller(BaseController):
         self.action_history = []
 
         draw_trajectory(initial_info, self.ctrl.planner.waypoint_pos,
-                        self.ctrl.ref[0], self.ctrl.ref[1], self.ctrl.ref[2],
+                        self.ctrl.planner.ref[0], self.ctrl.planner.ref[1], self.ctrl.planner.ref[2],
                         num_plot_points=200)
 
     def compute_control(
@@ -128,7 +128,7 @@ class Controller(BaseController):
         mpc_states = np.swapaxes(np.array(self.ctrl.ctrl.results_dict['horizon_states']), 0, 1)
         mpc_inputs = np.swapaxes(np.array(self.ctrl.ctrl.results_dict['horizon_inputs']), 0, 1)
 
-        np.savez(file, mpc_states=mpc_states, mpc_inputs=mpc_inputs, mpc_reference=self.ctrl.ref)
+        np.savez(file, mpc_states=mpc_states, mpc_inputs=mpc_inputs, mpc_reference=self.ctrl.planner.ref)
 
     def episode_learn(self):
         # use this function to plot episode data instead of learning

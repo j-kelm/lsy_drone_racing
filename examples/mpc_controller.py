@@ -27,6 +27,8 @@ class MPC:
                  compute_ipopt_initial_guess: bool = False,
                  init_solver: str = 'ipopt',
                  solver: str = 'ipopt',
+                 max_iter: int = 150,
+                 err_on_fail: bool = False,
                  **kwargs
                  ):
 
@@ -75,6 +77,7 @@ class MPC:
         self.init_solver = init_solver
         self.solver = solver
         self.compute_ipopt_initial_guess = compute_ipopt_initial_guess
+        self.max_iter = max_iter
 
         self.reset()
 
@@ -224,7 +227,7 @@ class MPC:
         opti.minimize(cost)
 
         # Create solver
-        opts = {'expand': True, 'error_on_fail': False}
+        opts = {'expand': True, 'error_on_fail': False, 'ipopt': {'max_iter': self.max_iter}}
         opti.solver(solver, opts)
 
         self.opti_dict = {
@@ -241,7 +244,8 @@ class MPC:
     def select_action(self,
                       obs,
                       ref,
-                      info=None
+                      info: dict=None,
+                      err_on_fail: bool=False,
                       ):
         '''Solves nonlinear mpc problem to get next action.
 
@@ -249,6 +253,7 @@ class MPC:
             obs (ndarray): Current state/observation.
             ref (ndarray): Current state reference to track
             info (dict): Current info containing the reference,
+            err_on_fail (bool): Throw an exception for infeasible MPC
 
         Returns:
             action (ndarray): Input/action to the task/env.
@@ -344,6 +349,9 @@ class MPC:
                     self.terminate_loop = True
                     u_val = opti.debug.value(u_var)
                     x_val = opti.debug.value(x_var)
+
+            if err_on_fail:
+                raise RuntimeError('Infeasible MPC problem')
 
         self.x_prev = x_val
         self.u_prev = u_val
