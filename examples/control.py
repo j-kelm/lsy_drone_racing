@@ -58,24 +58,24 @@ class Control:
 
         ellipsoid_constraints = list()
         for obstacle_pos in self.initial_info['obstacles.pos']:
-            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.16)
+            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.15)
 
         for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
-            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.14)
+            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.12)
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 
-        f = to_rbf_potential(ellipsoid_constraints)
-        h = 0.525
-        t = np.linspace(-3, 3, 600)
-        z = np.array([[i, j, h] for j in t for i in t]).T
-        z = np.array(f(z))
-
-        X, Y = np.meshgrid(t, t)
-        Z = z.reshape(600, 600)
-
-        plt.contourf(X, Y, Z, 20)
-        plt.show()
+        # f = to_rbf_potential(ellipsoid_constraints)
+        # h = 0.525
+        # t = np.linspace(-3, 3, 600)
+        # z = np.array([[i, j, h] for j in t for i in t]).T
+        # z = np.array(f(z))
+        #
+        # X, Y = np.meshgrid(t, t)
+        # Z = z.reshape(600, 600)
+        #
+        # plt.contourf(X, Y, Z, levels=[-0.001, 0.001])
+        # plt.show()
 
         self.ctrl = MPC(model=self.model,
                         horizon=int(self.config.mpc.horizon_sec * self.CTRL_FREQ),

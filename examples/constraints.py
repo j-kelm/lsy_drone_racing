@@ -58,7 +58,7 @@ def rbf(x, sigma):
 
 def to_rbf_potential(constraints: list):
     def g(x):
-        res = -0.5/np.e
+        res = -1/np.e**2
         for constraint in constraints:
             res += rbf(constraint(x), 0.5)
         return res
