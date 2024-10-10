@@ -4,7 +4,7 @@ camera_view = [5.0, -40.0, -40.0, 0.5, -1.0, 0.8]
 sim_freq = 1000                                    # Simulation frequency, in Hz
 ctrl_freq = 500                                   # Controller frequency, in Hz. This frequency is used to simulate the onboard controller, NOT for the environment's step function
 gui = true                                        # Enable/disable PyBullet's GUI
-save_video = ""
+save_video = "video.mp4"
 
 [sim.disturbances.action]
 type = "GaussianNoise"

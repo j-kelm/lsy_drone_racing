@@ -1,15 +1,17 @@
 import numpy as np
+import casadi as cs
 
+from examples.NN import result
 from examples.utils import np_rot_z
 
 def vblock_constraint(obstacle_center, length, r=0.15):
-    return lambda x: 1 - ((x[0] - obstacle_center[0]) / r) ** 2 - ((x[1] - obstacle_center[1]) / r) ** 2 - (
+    return lambda x:  ((x[0] - obstacle_center[0]) / r) ** 2 + ((x[1] - obstacle_center[1]) / r) ** 2 + (
                 (2 * (x[2] - obstacle_center[2]) / length)) ** 2
 
 def hblock_constraint(obstacle_center, width, yaw, r=0.15):
     def g(x):
-        x_rel = np_rot_z(yaw) @ (x[0:3] - obstacle_center)
-        return 1 - (2*x_rel[0]/width)**2 - (x_rel[1]/r)**2 - (x_rel[2]/r)**2
+        x_rel = np_rot_z(yaw) @ (x[0:3] - obstacle_center[:, None])
+        return  (2*x_rel[0]/width)**2 + (x_rel[1]/r)**2 + (x_rel[2]/r)**2
 
     return g
 
@@ -50,3 +52,15 @@ def gate_constraints(gate_pos, gate_yaw, r=0.15, s=1.6):
     constraints.append(hblock_constraint(gate_pos - z_offset, gate_size*s, gate_yaw, r))
 
     return constraints
+
+def rbf(x, sigma):
+    return cs.exp(-x/sigma)
+
+def to_rbf_potential(constraints: list):
+    def g(x):
+        res = -0.5/np.e
+        for constraint in constraints:
+            res += rbf(constraint(x), 0.5)
+        return res
+
+    return g

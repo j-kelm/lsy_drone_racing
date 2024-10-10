@@ -4,6 +4,7 @@ camera_view = [5.0, -40.0, -40.0, 0.5, -1.0, 0.5]
 sim_freq = 1000                                    # Simulation frequency, in Hz
 ctrl_freq = 500                                   # Controller frequency, in Hz. This frequency is used to simulate the onboard controller, NOT for the environment's step function
 gui = true                                        # Enable/disable PyBullet's GUI
+save_video = ""
 
 [sim.disturbances.action]
 type = "GaussianNoise"
@@ -25,15 +26,15 @@ action_mode = "fullstate"
 # Tall gates: 1.0m height. Short gates: 0.525m height. Height is measured from the ground to the
 # center of the gate.
 [[env.track.gates]]
-pos = [-1.5, 1.0, 0.525]
+pos = [1.0, 0.0, 0.525]
 rpy = [0.0, 0.0, -1.57079]
 
 # Obstacle height: 1.05m. Height is measured from the ground to the top of the obstacle.
 [[env.track.obstacles]]
-pos = [-2.0, 1.0, 1.05]
+pos = [-0.0, 0.0, 1.05]
 
 [env.track.drone]
-pos = [-2.5, 1.0, 0.525]
+pos = [-1.0, 0.0, 0.525]
 rpy = [0, 0, 0]
 vel = [0, 0, 0]
 ang_vel = [0, 0, 0]
@@ -61,18 +62,18 @@ high = [0.000001, 0.000001, 0.000001]
 
 [env.randomization.gate_pos]
 type = "uniform"
-low = [-0.1, -0.1, 0.0]
-high = [0.1, 0.1, 0.0]
+low = [-0.0, -0.0, 0.0]
+high = [0.0, 0.0, 0.0]
 
 [env.randomization.gate_rpy]
 type = "uniform"
-low = [0.0, 0.0, -0.1]
-high = [0.0, 0.0, 0.1]
+low = [0.0, 0.0, -0.0]
+high = [0.0, 0.0, 0.0]
 
 [env.randomization.obstacle_pos]
 type = "uniform"
-low = [-0.1, -0.1, 0.0]
-high = [0.1, 0.1, 0.0]
+low = [-0.0, -0.0, 0.0]
+high = [0.0, 0.0, 0.0]
 
 [[env.constraints]]
 type = "DefaultConstraint"
