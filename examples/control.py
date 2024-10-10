@@ -85,7 +85,9 @@ class Control:
                         max_iter=1500,
         )
 
-        self.forces = self.ctrl.U_EQ
+        self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[
+            'init_thrusts'] is not None else self.ctrl.U_EQ
+
 
         self.state = None
 
@@ -136,12 +138,15 @@ class Control:
 
     @staticmethod
     def to_horizon(series, step, horizon):
+        series = np.atleast_2d(series)
+
         start = step
         end = min(start + horizon, series.shape[-1])
         remain = max(0, horizon - (end - start))
-        remaining_series = np.concatenate([
-            series[..., start:end],
-            np.tile(series[..., -1:], (1, remain)).squeeze()
-        ], -1)
+
+        reference = series[..., start:end]
+        repeated = np.tile(series[..., -1:], (1, remain))
+
+        remaining_series = np.concatenate([reference, repeated], -1) if remain else reference
 
         return remaining_series

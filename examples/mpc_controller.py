@@ -360,7 +360,7 @@ class MPC:
         y = np.array(self.model.g_func(x=self.x_prev[:, 1:],
                                                 u=self.u_prev)['g'])
         self.results_dict['horizon_outputs'].append(deepcopy(y))
-        self.results_dict['goal_states'].append(deepcopy(goal_states))
+        self.results_dict['horizon_references'].append(deepcopy(goal_states))
         if self.solver == 'ipopt':
             self.results_dict['t_wall'].append(opti.stats()['t_wall_total'])
         # Take the first action from the solved action sequence.
@@ -401,7 +401,7 @@ class MPC:
                              'horizon_inputs': [],
                              'horizon_states': [],
                              'horizon_outputs': [],
-                             'goal_states': [],
+                             'horizon_references': [],
                              'frames': [],
                              'state_mse': [],
                              'common_cost': [],
