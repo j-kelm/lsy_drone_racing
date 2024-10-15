@@ -1,11 +1,8 @@
 from __future__ import annotations  # Python 3.10 type hints
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-
-from munch import munchify
-import yaml
 
 from examples.planner import MinsnapPlanner
 from examples.mpc_controller import MPC
@@ -14,7 +11,7 @@ from examples.constraints import obstacle_constraints, gate_constraints, to_rbf_
 
 
 class Control:
-    def __init__(self, initial_obs: npt.NDArray[np.floating], initial_info: dict):
+    def __init__(self, initial_obs: npt.NDArray[np.floating], initial_info: dict, config: dict):
         """Initialization of the controller.
 
         INSTRUCTIONS:
@@ -36,29 +33,27 @@ class Control:
         if 'gate_idx' not in initial_info:
             initial_info['gate_idx'] = 0
 
-        path = "config/mpc.yaml"
-        with open(path, "r") as file:
-            self.config = munchify(yaml.safe_load(file))
+        self.config = config
 
         # initialize planner
         self.planner = MinsnapPlanner(initial_info=initial_info,
                                       initial_obs=self.initial_obs,
-                                      speed=2.0,
+                                      speed=1.5,
                                       gate_index=initial_info['gate_idx'],
         )
 
         # Get model and constraints
         self.model = Model(info=None)
 
-        self.model.state_constraints_soft += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
-        self.model.state_constraints_soft += [lambda x: -84 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 84 / 180 * np.pi] # 0.03 <= thrust <= 0.145
+        self.model.state_constraints += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
+        self.model.state_constraints_soft += [lambda x: -84 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 84 / 180 * np.pi] # max roll and pitch
         self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 
         ellipsoid_constraints = list()
         for obstacle_pos in self.initial_info['obstacles.pos']:
-            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.15)
+            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.14)
 
         for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
             ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.12)
@@ -70,19 +65,17 @@ class Control:
         # t = np.linspace(-3, 3, 600)
         # z = np.array([[i, j, h] for j in t for i in t]).T
         # z = np.array(f(z))
-        #
         # X, Y = np.meshgrid(t, t)
         # Z = z.reshape(600, 600)
-        #
         # plt.contourf(X, Y, Z, levels=[-0.001, 0.001])
         # plt.show()
 
         self.ctrl = MPC(model=self.model,
-                        horizon=int(self.config.mpc.horizon_sec * self.CTRL_FREQ),
-                        q_mpc=self.config.mpc.q, r_mpc=self.config.mpc.r,
-                        soft_penalty=1e6,
+                        horizon=int(self.config['horizon_sec'] * self.CTRL_FREQ),
+                        q_mpc=self.config['q'], r_mpc=self.config['r'],
+                        soft_penalty=1e5,
                         err_on_fail=False,
-                        max_iter=1500,
+                        max_iter=1000,
         )
 
         self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[
@@ -90,6 +83,13 @@ class Control:
 
 
         self.state = None
+        self.planning_step = 0
+
+
+    def re_plan(self, initial_obs: npt.NDArray[np.floating], initial_info: dict):
+        self.planning_step = initial_info['step']
+        raise NotImplementedError
+
 
     def compute_control(
         self, state: npt.NDArray[np.floating], info: dict | None = None
@@ -110,14 +110,15 @@ class Control:
         """
 
         state = np.concatenate([state, self.forces])
+        step = info['step'] - self.planning_step
 
         # Slice trajectory for horizon steps, if not long enough, repeat last state.
-        remaining_ref = self.to_horizon(self.planner.ref, info['step'], self.ctrl.T + 1)
-        gate_prox = self.to_horizon(self.planner.gate_prox, info['step'], self.ctrl.T + 1)
+        remaining_ref = self.to_horizon(self.planner.ref, step, self.ctrl.T + 1)
+        gate_prox = self.to_horizon(self.planner.gate_prox, step, self.ctrl.T + 1)
 
-        q_pos = np.zeros_like(self.config.mpc.q)
-        q_pos[0:3] = self.config.mpc.q[0:3]
-        info['q'] = np.array(self.config.mpc.q)[:, np.newaxis] + 4.0 * np.outer(q_pos, gate_prox)
+        q_pos = np.zeros_like(self.config['q'])
+        q_pos[0:3] = self.config['q'][0:3]
+        info['q'] = np.array(self.config['q'])[:, np.newaxis] + 4.0 * np.outer(q_pos, gate_prox)
         # info['r'] = np.array(self.config.mpc.r)[:, np.newaxis] + 3.0 * np.outer(self.config.mpc.r, gate_prox)
         info['u_guess'] = np.tile(np.expand_dims(np.zeros(4), axis=1), (1, self.ctrl.T))
 
@@ -131,10 +132,13 @@ class Control:
                                                                   ref=remaining_ref,
                                                                   info=info,
                                                                   err_on_fail=False)
+            # (1) re-plan and warm start with new reference
+            # (2) add noise to reference
 
         self.forces = next_state[12:16]
 
         return inputs, next_state, outputs
+
 
     @staticmethod
     def to_horizon(series, step, horizon):
@@ -147,6 +151,12 @@ class Control:
         reference = series[..., start:end]
         repeated = np.tile(series[..., -1:], (1, remain))
 
-        remaining_series = np.concatenate([reference, repeated], -1) if remain else reference
+        if remain:
+            if remain - horizon:
+                remaining_series = np.concatenate([reference, repeated], -1)
+            else:
+                remaining_series = repeated
+        else:
+            remaining_series = reference
 
         return remaining_series

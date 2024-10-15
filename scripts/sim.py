@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 import fire
 import gymnasium
 import pybullet as p
-import cv2
+# import cv2
 
 from lsy_drone_racing.utils import load_config, load_controller
 from lsy_drone_racing.wrapper import DroneRacingObservationWrapper
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def simulate(
-    config: str = "config/getting_started.toml",
+    config: str = "config/cluttered.toml",
     controller: str = "examples/controller.py",
     n_runs: int = 1,
     gui: bool = True,
@@ -61,8 +61,8 @@ def simulate(
     ep_times = []
 
     # Create video stream
-    if config.sim.save_video:
-        video_stream = cv2.VideoWriter(config.sim.save_video, cv2.VideoWriter_fourcc(*'mp4v'), config.env.freq, (640, 480))
+    # if config.sim.save_video:
+    #     video_stream = cv2.VideoWriter(config.sim.save_video, cv2.VideoWriter_fourcc(*'mp4v'), config.env.freq, (640, 480))
 
     # Run the episodes.
     for _ in range(n_runs):
@@ -96,8 +96,8 @@ def simulate(
 
             # Get the observation from the motion capture system
             # Compute control input.
-            if config.sim.save_video:
-                video_stream.write(env.render()[...,::-1])  # rgb to opencv bgr
+            # if config.sim.save_video:
+            #     video_stream.write(env.render()[...,::-1])  # rgb to opencv bgr
 
             action = ctrl.compute_control(obs, info)
             obs, reward, terminated, truncated, info = env.step(action)
@@ -127,9 +127,9 @@ def simulate(
         ep_times.append(curr_time if info["target_gate"] == -1 else None)
 
     # Close the environment
-    if config.sim.save_video:
-        video_stream.write(env.render()[...,::-1])  # rgb to opencv bgr
-        video_stream.release()
+    # if config.sim.save_video:
+    #     video_stream.write(env.render()[...,::-1])  # rgb to opencv bgr
+    #     video_stream.release()
     env.close()
     return ep_times
 

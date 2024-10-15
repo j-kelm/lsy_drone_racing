@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from triton.language import dtype
 
 device = "cuda:0"
 lr = 1.0e-4

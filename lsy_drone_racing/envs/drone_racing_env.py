@@ -57,7 +57,7 @@ class DroneRacingEnv(gymnasium.Env):
         fm = np.finfo(np.float32).max
         low = np.array([-5, -fm, -5, -fm, -0.25, -fm, -np.pi, -np.pi, -np.pi, -fm, -fm, -fm])
         high = np.array([5, fm, 5, fm, 2.5, fm, np.pi, np.pi, np.pi, fm, fm, fm])
-        self.observation_space = gymnasium.spaces.Box(low=low, high=high, dtype=np.float32)
+        self.observation_space = gymnasium.spaces.Box(low=low, high=high, dtype=np.float64)
         self.target_gate = 0
         self.symbolic = config.env.symbolic
         self._steps = 0

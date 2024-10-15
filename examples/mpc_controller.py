@@ -322,12 +322,16 @@ class MPC:
             u_guess[:-1] = u_guess[1:]
             opti.set_initial(x_var, x_guess)
             opti.set_initial(u_var, u_guess)
+
         # Solve the optimization problem.
         try:
             sol = opti.solve()
             x_val, u_val = sol.value(x_var), sol.value(u_var)
         except RuntimeError:
             print(colored('Infeasible MPC Problem', 'red'))
+            if err_on_fail:
+                raise RuntimeError('Infeasible MPC problem')
+
             if self.solver == 'ipopt':
                 x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
             elif self.solver == 'qrsqp':
@@ -350,9 +354,6 @@ class MPC:
                     u_val = opti.debug.value(u_var)
                     x_val = opti.debug.value(x_var)
 
-            if err_on_fail:
-                raise RuntimeError('Infeasible MPC problem')
-
         self.x_prev = x_val
         self.u_prev = u_val
         self.results_dict['horizon_states'].append(deepcopy(self.x_prev))
@@ -361,8 +362,11 @@ class MPC:
                                                 u=self.u_prev)['g'])
         self.results_dict['horizon_outputs'].append(deepcopy(y))
         self.results_dict['horizon_references'].append(deepcopy(goal_states))
+
         if self.solver == 'ipopt':
             self.results_dict['t_wall'].append(opti.stats()['t_wall_total'])
+            self.results_dict['solution_found'].append(opti.stats()['success'])
+            self.results_dict['iter_count'].append(opti.stats()['iter_count'])
         # Take the first action from the solved action sequence.
         if u_val.ndim > 1:
             action = u_val[:, 0]
@@ -402,12 +406,14 @@ class MPC:
                              'horizon_states': [],
                              'horizon_outputs': [],
                              'horizon_references': [],
+                             'solution_found': [],
                              'frames': [],
                              'state_mse': [],
                              'common_cost': [],
                              'state': [],
                              'state_error': [],
-                             't_wall': []
+                             't_wall': [],
+                             'iter_count': [],
                              }
 
     def reset_before_run(self, obs, info=None, env=None):

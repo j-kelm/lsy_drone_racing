@@ -93,3 +93,8 @@ skip-magic-trailing-comma = true
 line-ending = "auto"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
+
+# pytables
+# matplotlib
+# h5py
+# torch
