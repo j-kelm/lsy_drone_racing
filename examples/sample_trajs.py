@@ -5,7 +5,8 @@ from munch import munchify
 import yaml
 import toml
 
-from examples.control import Control
+from examples.mpc_control import MPCControl
+from examples.planner import MinsnapPlanner
 
 NUM_TRACKS = 1
 CTRL_FREQ = 30
@@ -48,23 +49,28 @@ if __name__ == "__main__":
             'ctrl_freq': CTRL_FREQ,
         }
 
-        ctrl = Control(initial_obs=np.array(state), initial_info=initial_info, config=mpc_config)
+        planner = MinsnapPlanner(initial_info=initial_info,
+                                      initial_obs=state,
+                                      speed=1.5,
+                                      )
+        ctrl = MPCControl(initial_info, mpc_config)
 
         # loop mpc through entire track
-        for step in range(np.shape(ctrl.planner.ref)[1]):
+        for step in range(np.shape(planner.ref)[1]):
             info = {
                 'step': step,
+                'gate_prox': planner.gate_prox
             }
-            inputs, next_state, outputs = ctrl.compute_control(state, info)
+            inputs, next_state, outputs = ctrl.compute_control(state, planner.ref, info)
             state = next_state[:12]
 
         result = {
             'gates.pos': gates_pos,  # ndarray (gates, 3)
             'gates.rpy': gates_rpy,  # ndarray (gates, 3)
             'obstacles.pos': obstacles_pos,  # ndarray (obstacles, 3)
-            'track_reference': ctrl.planner.ref,  # ndarray (states, steps)
-            'next_gate': ctrl.planner.next_gate_idx,  # ndarray (1, steps)
-            'gate_prox': ctrl.planner.gate_prox,  # ndarray (1, steps)
+            'track_reference': planner.ref,  # ndarray (states, steps)
+            'next_gate': planner.next_gate_idx,  # ndarray (1, steps)
+            'gate_prox': planner.gate_prox,  # ndarray (1, steps)
             'x_horizons': np.array(ctrl.ctrl.results_dict['horizon_states']), # ndarray (steps, states, horizon + 1)
             'y_horizons': np.array(ctrl.ctrl.results_dict['horizon_outputs']),  # ndarray (steps, outputs, horizon)
             'u_horizons': np.array(ctrl.ctrl.results_dict['horizon_inputs']),  # ndarray (steps, inputs, horizon)

@@ -4,7 +4,7 @@ import numpy as np
 hdf_path = "output/track_data.hdf5"
 output_path = "output/training_data.hdf5"
 
-PREDICTION_HORIZON = 15 # steps, must be bigger than horizon from MPC
+PREDICTION_HORIZON = 5 # steps, must be bigger than horizon from MPC
 
 if __name__ == '__main__':
     in_file = h5py.File(hdf_path, 'r', libver='latest')
@@ -36,12 +36,12 @@ if __name__ == '__main__':
                                         snippet_length = np.array(snippet['solution_found']).shape[0]
 
                                         init_states = np.array(snippet['initial_states'])[:, states_for_input]
-                                        gate_index = snippet['config/next_gate'][:snippet_length]
+                                        gate_index = np.array(point_grp['config/next_gate'])
                                         obstacles_pos = np.array(track_grp['config/obstacles.pos']).reshape((1, -1))
                                         gates_pos = np.array(track_grp['config/gates.pos']).reshape((1, -1))
                                         gates_rpy = np.array(track_grp['config/gates.rpy']).reshape((1, -1))
                                         track = np.repeat(np.hstack([obstacles_pos, gates_pos, gates_rpy]), snippet_length, axis=0)
-                                        inputs.append(np.hstack([init_states, gate_index[:, None], track]))
+                                        inputs.append(np.hstack([init_states, gate_index.T, track]))
 
                                         horizon_outputs = np.array(snippet['y_horizons'])
                                         outputs.append(horizon_outputs[:, states_for_output, :PREDICTION_HORIZON])

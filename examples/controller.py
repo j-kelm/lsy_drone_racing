@@ -40,7 +40,8 @@ import yaml
 from lsy_drone_racing.controller import BaseController
 from lsy_drone_racing.utils.utils import draw_trajectory, draw_segment_of_traj
 
-from examples.control import Control
+from examples.mpc_control import MPCControl
+from examples.planner import MinsnapPlanner
 
 
 class Controller(BaseController):
@@ -71,15 +72,19 @@ class Controller(BaseController):
         self.initial_obs = initial_obs
         self.initial_info = initial_info
 
-        self.ctrl = Control(initial_obs, initial_info, mpc_config)
+        self.planner = MinsnapPlanner(initial_info=self.initial_info,
+                       initial_obs=self.initial_obs,
+                       speed=1.5,
+        )
+        self.ctrl = MPCControl(initial_info, mpc_config)
 
         self.episode_reset()
 
         self.state_history = []
         self.action_history = []
 
-        draw_trajectory(initial_info, self.ctrl.planner.waypoint_pos,
-                        self.ctrl.planner.ref[0], self.ctrl.planner.ref[1], self.ctrl.planner.ref[2],
+        draw_trajectory(initial_info, self.planner.waypoint_pos,
+                        self.planner.ref[0], self.planner.ref[1], self.planner.ref[2],
                         num_plot_points=200)
 
     def compute_control(
@@ -109,7 +114,9 @@ class Controller(BaseController):
         if len(self.state_history):
             draw_segment_of_traj(self.initial_info, self.state_history[-1][0:3], pos, [0, 1, 0, 1])
 
-        inputs, next_state, outputs = self.ctrl.compute_control(state, info)
+        info['gate_prox'] = self.planner.gate_prox
+
+        inputs, next_state, outputs = self.ctrl.compute_control(state, self.planner.ref, info)
 
         target_pos = next_state[:3]
         target_vel = next_state[3:6]
@@ -132,7 +139,7 @@ class Controller(BaseController):
         mpc_states = np.swapaxes(np.array(self.ctrl.ctrl.results_dict['horizon_states']), 0, 1)
         mpc_inputs = np.swapaxes(np.array(self.ctrl.ctrl.results_dict['horizon_inputs']), 0, 1)
 
-        np.savez(file, mpc_states=mpc_states, mpc_inputs=mpc_inputs, mpc_reference=self.ctrl.planner.ref)
+        np.savez(file, mpc_states=mpc_states, mpc_inputs=mpc_inputs, mpc_reference=self.planner.ref)
 
     def episode_learn(self):
         # use this function to plot episode data instead of learning

@@ -15,7 +15,6 @@ class MPC:
                  q_mpc: list = [5],
                  r_mpc: list = [0.01],
                  warmstart: bool = True,
-                 soft_constraints: bool = False,
                  soft_penalty: float = 1e3,
                  terminate_run_on_done: bool = True,
                  constraint_tol: float = 1e-6,
@@ -24,8 +23,6 @@ class MPC:
                  output_dir: str = 'results/temp',
                  use_gpu: bool = False,
                  seed: int = 0,
-                 compute_ipopt_initial_guess: bool = False,
-                 init_solver: str = 'ipopt',
                  solver: str = 'ipopt',
                  max_iter: int = 150,
                  **kwargs
@@ -68,15 +65,15 @@ class MPC:
         self.r = np.repeat(np.array(r_mpc)[:, np.newaxis], self.T+1, axis=1)
 
         self.constraint_tol = constraint_tol
-        self.soft_constraints = soft_constraints
         self.soft_penalty = soft_penalty
         self.warmstart = warmstart
         self.terminate_run_on_done = terminate_run_on_done
 
-        self.init_solver = init_solver
         self.solver = solver
-        self.compute_ipopt_initial_guess = compute_ipopt_initial_guess
         self.max_iter = max_iter
+
+        self.set_dynamics_func()
+        self.setup_optimizer(self.solver)
 
         self.reset()
 
@@ -89,9 +86,9 @@ class MPC:
         print(colored('Resetting MPC', 'green'))
         '''Prepares for training or evaluation.'''
         # Dynamics model.
-        self.set_dynamics_func()
+        # self.set_dynamics_func()
         # CasADi optimizer.
-        self.setup_optimizer(self.solver)
+        # self.setup_optimizer(self.solver)
         # Previously solved states & inputs, useful for warm start.
         self.x_prev = None
         self.u_prev = None
@@ -104,48 +101,6 @@ class MPC:
                                          self.model.nx,
                                          self.model.nu,
                                          self.dt)
-
-
-    def compute_initial_guess(self, init_state, goal_states):
-        # maybe do not call this function at all and delete
-
-        time_before = time.time()
-        '''Use IPOPT to get an initial guess of the '''
-        print(colored('Computing initial guess', 'green'))
-        self.setup_optimizer(solver=self.init_solver)
-        opti_dict = self.opti_dict
-        opti = opti_dict['opti']
-        x_var = opti_dict['x_var']  # optimization variables
-        u_var = opti_dict['u_var']  # optimization variables
-        x_init = opti_dict['x_init']  # initial state
-        x_ref = opti_dict['x_ref']  # reference state/trajectory
-
-        # Assign the initial state.
-        opti.set_value(x_init, init_state)  # initial state should have dim (nx,)
-        # Assign reference trajectory within horizon.
-        goal_states = self.to_horizon(goal_states=goal_states)
-        opti.set_value(x_ref, goal_states)
-
-        # Solve the optimization problem.
-        try:
-            sol = opti.solve()
-            x_val, u_val = sol.value(x_var), sol.value(u_var)
-        except RuntimeError:
-            print(colored('Warm-starting fails', 'red'))
-            x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
-
-        x_guess = x_val
-        u_guess = u_val
-        self.x_prev = x_guess
-        self.u_prev = u_guess
-
-        # set the solver back
-        self.setup_optimizer(solver=self.solver)
-
-        time_after = time.time()
-        print('MPC _compute_initial_guess time: ', time_after - time_before)
-
-        return x_guess, u_guess
 
     def setup_optimizer(self, solver='qrsqp'):
         '''Sets up nonlinear optimization problem.'''
@@ -291,13 +246,8 @@ class MPC:
             opti.set_value(r, self.r)
 
         # check for warm start solution
-        if (self.x_prev is None and self.u_prev is None) or force_warm_start:
-            if self.compute_ipopt_initial_guess:
-                print(colored(f'computing initial guess with {self.init_solver}', 'green'))
-                x_guess, u_guess = self.compute_initial_guess(obs, goal_states)
-                opti.set_initial(x_var, x_guess)
-                opti.set_initial(u_var, u_guess) # Initial guess for optimization problem.
-            elif self.warmstart:
+        if force_warm_start or (self.x_prev is None and self.u_prev is None):
+            if self.warmstart:
                 if 'x_guess' in info and info['x_guess'] is not None:
                     print(colored(f'setting initial state guess from info', 'green'))
                     x_guess = info['x_guess']
@@ -310,7 +260,7 @@ class MPC:
                     u_guess = info['u_guess']
                 else:
                     print(colored(f'setting initial input guess from reference', 'green'))
-                    u_guess = np.tile(np.expand_dims(self.U_EQ, axis=1), (1, self.T))
+                    u_guess = np.tile(np.expand_dims(np.zeros(4), axis=1), (1, self.T))
 
                 opti.set_initial(x_var, x_guess)
                 opti.set_initial(u_var, u_guess)

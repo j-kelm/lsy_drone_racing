@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 def simulate(
     config: str = "config/multi_modality.toml",
-    controller: str = "examples/controller.py",
+    controller: str = "examples/nn_controller.py",
     n_runs: int = 1,
     gui: bool = True,
 ) -> list[float]:
