@@ -30,16 +30,18 @@ class Control:
         self.initial_obs = initial_obs
         self.initial_info = initial_info
 
-        if 'gate_idx' not in initial_info:
-            initial_info['gate_idx'] = 0
+        if 'next_gate' not in initial_info:
+            print('[WARN] No initial gate index provided, assuming 0.')
+            initial_info['next_gate'] = 0
 
         self.config = config
+        # self.multi_starts = self.config['multi_starts']
 
         # initialize planner
         self.planner = MinsnapPlanner(initial_info=initial_info,
                                       initial_obs=self.initial_obs,
                                       speed=1.5,
-                                      gate_index=initial_info['gate_idx'],
+                                      gate_index=initial_info['next_gate'],
         )
 
         # Get model and constraints
@@ -75,7 +77,7 @@ class Control:
                         q_mpc=self.config['q'], r_mpc=self.config['r'],
                         soft_penalty=1e5,
                         err_on_fail=False,
-                        max_iter=1000,
+                        max_iter=500,
         )
 
         self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[
@@ -122,18 +124,22 @@ class Control:
         # info['r'] = np.array(self.config.mpc.r)[:, np.newaxis] + 3.0 * np.outer(self.config.mpc.r, gate_prox)
         info['u_guess'] = np.tile(np.expand_dims(np.zeros(4), axis=1), (1, self.ctrl.T))
 
+
         try:
             inputs, next_state, outputs = self.ctrl.select_action(obs=state,
                                                                   ref=remaining_ref,
                                                                   info=info,
                                                                   err_on_fail=True)
-        except RuntimeError: # re-plan on fail
+
+        except RuntimeError:  # use reference warm start on fail
+            print('[WARN] First attempt failed, trying again with reference warm-start.')
+            info['x_guess'] = None
             inputs, next_state, outputs = self.ctrl.select_action(obs=state,
                                                                   ref=remaining_ref,
                                                                   info=info,
-                                                                  err_on_fail=False)
-            # (1) re-plan and warm start with new reference
-            # (2) add noise to reference
+                                                                  err_on_fail=False,
+                                                                  force_warm_start=True)
+
 
         self.forces = next_state[12:16]
 
@@ -146,7 +152,7 @@ class Control:
 
         start = step
         end = min(start + horizon, series.shape[-1])
-        remain = max(0, horizon - (end - start))
+        remain = np.clip(horizon - (end - start), 0, horizon)
 
         reference = series[..., start:end]
         repeated = np.tile(series[..., -1:], (1, remain))

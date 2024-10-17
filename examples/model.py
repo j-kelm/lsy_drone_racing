@@ -64,10 +64,12 @@ class Model:
         self.state_constraints_soft = []
 
         self.STATE_LABELS = ['x', 'y', 'z', 'x_dot', 'y_dot', 'z_dot',
-                             'phi', 'theta', 'psi', 'p', 'q', 'r']
+                             'phi', 'theta', 'psi', 'p', 'q', 'r',
+                             'T1', 'T2', 'T3', 'T4',]
         self.STATE_UNITS = ['m', 'm', 'm', 'm/s','m/s', 'm/s',
-                            'rad', 'rad', 'rad', 'rad/s', 'rad/s', 'rad/s']
-        self.INPUT_LABELS = ['T1',  'T2', 'T3', 'T4']
+                            'rad', 'rad', 'rad', 'rad/s', 'rad/s', 'rad/s',
+                            'N', 'N', 'N', 'N',]
+        self.INPUT_LABELS = ['delta_T1',  'delta_T2', 'delta_T3', 'delta_T4']
         self.INPUT_UNITS = ['N', 'N', 'N', 'N']
 
     def setup_symbolics(self):

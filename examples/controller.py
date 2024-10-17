@@ -61,13 +61,17 @@ class Controller(BaseController):
         """
         super().__init__(initial_obs, initial_info)
 
+        path = "config/mpc.yaml"
+        with open(path, "r") as file:
+            mpc_config = munchify(yaml.safe_load(file))
+
         # Save environment and control parameters.
         self.CTRL_TIMESTEP = initial_info["ctrl_timestep"]
         self.CTRL_FREQ = initial_info["ctrl_freq"]
         self.initial_obs = initial_obs
         self.initial_info = initial_info
 
-        self.ctrl = Control(initial_obs, initial_info)
+        self.ctrl = Control(initial_obs, initial_info, mpc_config)
 
         self.episode_reset()
 

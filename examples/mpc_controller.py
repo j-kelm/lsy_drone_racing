@@ -28,7 +28,6 @@ class MPC:
                  init_solver: str = 'ipopt',
                  solver: str = 'ipopt',
                  max_iter: int = 150,
-                 err_on_fail: bool = False,
                  **kwargs
                  ):
 
@@ -246,14 +245,16 @@ class MPC:
                       ref,
                       info: dict=None,
                       err_on_fail: bool=False,
+                      force_warm_start: bool=False,
                       ):
         '''Solves nonlinear mpc problem to get next action.
 
         Args:
             obs (ndarray): Current state/observation.
             ref (ndarray): Current state reference to track
-            info (dict): Current info containing the reference,
+            info (dict): Current info containing the reference, warmstart info, weighted cost matrices
             err_on_fail (bool): Throw an exception for infeasible MPC
+            force_warm_start (bool): Force use of reference/provided guess for warm-starting
 
         Returns:
             action (ndarray): Input/action to the task/env.
@@ -290,7 +291,7 @@ class MPC:
             opti.set_value(r, self.r)
 
         # check for warm start solution
-        if self.x_prev is None and self.u_prev is None:
+        if (self.x_prev is None and self.u_prev is None) or force_warm_start:
             if self.compute_ipopt_initial_guess:
                 print(colored(f'computing initial guess with {self.init_solver}', 'green'))
                 x_guess, u_guess = self.compute_initial_guess(obs, goal_states)
@@ -364,9 +365,11 @@ class MPC:
         self.results_dict['horizon_references'].append(deepcopy(goal_states))
 
         if self.solver == 'ipopt':
-            self.results_dict['t_wall'].append(opti.stats()['t_wall_total'])
-            self.results_dict['solution_found'].append(opti.stats()['success'])
-            self.results_dict['iter_count'].append(opti.stats()['iter_count'])
+            stats = opti.stats()
+            self.results_dict['t_wall'].append(stats['t_wall_total'])
+            self.results_dict['solution_found'].append(stats['success'])
+            self.results_dict['iter_count'].append(stats['iter_count'])
+            self.results_dict['obj'].append(stats['iterations']['obj'][-1])
         # Take the first action from the solved action sequence.
         if u_val.ndim > 1:
             action = u_val[:, 0]
@@ -414,6 +417,7 @@ class MPC:
                              'state_error': [],
                              't_wall': [],
                              'iter_count': [],
+                             'obj': [],
                              }
 
     def reset_before_run(self, obs, info=None, env=None):

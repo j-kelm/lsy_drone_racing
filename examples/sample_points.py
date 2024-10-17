@@ -7,9 +7,9 @@ from examples.control import Control
 
 TRACK_INDEX = 0
 RUNS_PER_POINT = 1
-STEPS_PER_RUN = 5
+STEPS_PER_RUN = 1
 CTRL_FREQ = 30
-SEED = 42
+SEED = 8233632
 
 hdf_path = "output/track_data.hdf5"
 
@@ -31,13 +31,21 @@ if __name__ == "__main__":
     track_config = track_grp['config']
 
     # get random generator and seed
-    rng = np.random.default_rng(seed=SEED)  # TODO: use index here
-    randomizer_range = np.array([0.25, 0.25, 0.25, 0.5, 0.5, 0.5, np.pi/4, np.pi/4, np.pi/4, np.pi/2, np.pi/2, np.pi/2, 0.01, 0.01, 0.01, 0.01])
+    rng = np.random.default_rng(seed=SEED)
+    # randomizer_range = np.array([0.25, 0.25, 0.25, 0.5, 0.5, 0.5, np.pi/4, np.pi/4, np.pi/4, np.pi/2, np.pi/2, np.pi/2, 0.01, 0.01, 0.01, 0.01])
+    randomizer_range = np.array(
+        [0.05, 0.05, 0.05, 0.01, 0.01, 0.01, 0, 0, 0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01]) * 0.0
+    lower_state_bound = np.array(
+        [-3.0, -3.0, 0.0, -2.5, -2.5, -2.5, -np.pi/2, -np.pi/2, -np.inf, -10.0, -10.0, -10.0, 0.03, 0.03, 0.03, 0.03])
+    upper_state_bound = np.array(
+        [3.0, 3.0, 2.5, 2.5, 2.5, 2.5, np.pi/2, np.pi/2, np.inf, 10.0, 10.0, 10.0, 0.145, 0.145, 0.145, 0.145])
 
     worker_grp = track_grp.require_group(f'worker_{SEED}')
     worker_config = {
         'seed': SEED,
         'randomizer_range': randomizer_range,
+        'lower_state_bound': lower_state_bound,
+        'upper_state_bound': upper_state_bound,
     }
 
     gates_pos = track_config['gates.pos']
@@ -60,10 +68,12 @@ if __name__ == "__main__":
 
         for run in range(RUNS_PER_POINT):
             # randomize initial state
-            noise = rng.uniform(-randomizer_range, randomizer_range, initial_state.size)
-            state = initial_state + noise
+            lower_bound = np.clip(initial_state - randomizer_range, lower_state_bound, upper_state_bound)
+            upper_bound = np.clip(initial_state + randomizer_range, lower_state_bound, upper_state_bound)
 
-            initial_info['gate_index'] = next_gate_idx
+            state = rng.uniform(lower_bound, upper_bound, initial_state.size)
+
+            initial_info['next_gate'] = next_gate_idx
             initial_info['init_thrusts'] = state[12:16]
             ctrl = Control(initial_obs=np.array(state[:12]), initial_info=initial_info, config=mpc_config)
 
@@ -87,6 +97,9 @@ if __name__ == "__main__":
                 })
                 state = next_state[:12]
 
+                if not ctrl.ctrl.results_dict['solution_found'][-1]:
+                    break
+
             result = {
                 'x_horizons': np.array(ctrl.ctrl.results_dict['horizon_states']),
                 # ndarray (steps, states, horizon + 1)
@@ -98,6 +111,7 @@ if __name__ == "__main__":
                 't_wall': np.array(ctrl.ctrl.results_dict['t_wall']),
                 'iter_count': np.array(ctrl.ctrl.results_dict['iter_count']),
                 'solution_found': np.array(ctrl.ctrl.results_dict['solution_found']),
+                'objective': np.array(ctrl.ctrl.results_dict['obj']),
             }
 
             dict_to_group(snippet_grp, None, result)

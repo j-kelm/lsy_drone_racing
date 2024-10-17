@@ -30,16 +30,13 @@ class MinsnapPlanner:
                 position=gate_pos,
             ))
 
-            theta = gate_rpy[2]
-            rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-            offset = np.zeros(3)
-            offset[:2] = rotation @ np.array([0, 1.0])
+        theta = self.gates_rpy[-1][2]
+        rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+        offset = np.zeros(3)
+        offset[:2] = rotation @ np.array([0, 1.0])
 
-            gate_front_pos = gate_pos - offset
-            gate_back_pos = gate_pos + offset
-
-        final_pos = self.waypoints[-1].position + 1.0 * np.sqrt(speed) * offset
-        time += self.get_time_from_last_waypoint(final_pos, self.waypoints, speed) * 2.5
+        final_pos = np.array(self.gates_pos[-1]) + 1.0 * np.sqrt(speed) * offset
+        time += self.get_time_from_last_waypoint(final_pos, self.waypoints, speed) * 1.5 # 2.5
         self.waypoints.append(ms.Waypoint(
             time=time,
             position=final_pos,
@@ -64,9 +61,9 @@ class MinsnapPlanner:
 
         # time steps close to gate are more important
         progress = progress_f(t)
-        next_gate_idx = np.floor(progress)
-        gate_prox = np.empty((len(self.waypoints), t.shape[0]))
-        for i, time in enumerate(self.waypoint_times):
+        next_gate_idx = np.floor(progress).astype(np.int32)
+        gate_prox = np.empty((len(self.waypoint_times[1:]), t.shape[0]))
+        for i, time in enumerate(self.waypoint_times[1:]):
             gate_prox[i, :] = np.exp(-((t-time)/gate_time_constant)**2)
 
         gate_prox = np.max(gate_prox, axis=0)
@@ -74,6 +71,7 @@ class MinsnapPlanner:
         self.ref = np.zeros((16, np.shape(pv)[1]))
         self.ref[:3] = pv[0, ...].T
         self.ref[3:6] = pv[1, ...].T
+        self.ref[12:16] = 0.088
         self.next_gate_idx = next_gate_idx
         self.gate_prox = gate_prox
 
@@ -82,5 +80,5 @@ class MinsnapPlanner:
 
 
     @staticmethod
-    def get_time_from_last_waypoint(waypoint, prev_list, speed):
-        return np.linalg.norm(waypoint - prev_list[-1].position) / speed
+    def get_time_from_last_waypoint(waypoint, prev_list, speed, eps=0.05):
+        return max(np.linalg.norm(waypoint - prev_list[-1].position) / speed, eps)

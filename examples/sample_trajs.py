@@ -73,6 +73,7 @@ if __name__ == "__main__":
             't_wall': np.array(ctrl.ctrl.results_dict['t_wall']),
             'iter_count': np.array(ctrl.ctrl.results_dict['iter_count']),
             'solution_found': np.array(ctrl.ctrl.results_dict['solution_found']),
+            'objective': np.array(ctrl.ctrl.results_dict['obj']),
         }
 
         track_grp = f.create_group(f'track_{track_i}')
