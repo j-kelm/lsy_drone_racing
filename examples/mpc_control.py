@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing as npt
 from sympy.physics.units import action
 
-from examples.mpc_controller import MPC
+from examples.mpc import MPC
 from examples.model import Model
 from examples.constraints import obstacle_constraints, gate_constraints, to_rbf_potential
 
@@ -24,8 +24,9 @@ class MPCControl:
             initial_info: Additional environment information from the reset.
         """
         # Save environment and control parameters.
-        self.CTRL_TIMESTEP = initial_info["ctrl_timestep"]
-        self.CTRL_FREQ = initial_info["ctrl_freq"]
+        self.CTRL_FREQ = initial_info["env.freq"]
+        self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
+
         self.initial_info = initial_info
 
         self.config = config
@@ -52,7 +53,7 @@ class MPCControl:
         self.ctrl = MPC(model=self.model,
                         horizon=int(self.config['horizon_sec'] * self.CTRL_FREQ),
                         q_mpc=self.config['q'], r_mpc=self.config['r'],
-                        soft_penalty=1e5,
+                        soft_penalty=1e3,
                         err_on_fail=False,
                         max_iter=500,
         )
@@ -82,6 +83,7 @@ class MPCControl:
         Returns:
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
+
 
         state = np.concatenate([state, self.forces])
         step = info['step']

@@ -11,7 +11,7 @@ import yaml
 import toml
 
 from examples.planner import Planner, PointPlanner, FilePlanner, LinearPlanner
-from examples.mpc_controller import MPC
+from examples.mpc import MPC
 from examples.model import Model
 from examples.constraints import obstacle_constraints, gate_constraints
 

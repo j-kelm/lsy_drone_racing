@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def simulate(
-    config: str = "level0.toml",
+    config: str = "new_multi_modality.toml",
     controller: str | None = None,
     n_runs: int = 1,
     gui: bool = True,
@@ -68,6 +68,7 @@ def simulate(
         i = 0
 
         while not done:
+            info['step'] = i
             t_start = time.time()
             curr_time = i / config.env.freq
             if gui:

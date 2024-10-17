@@ -48,8 +48,8 @@ if __name__ == "__main__":
         'gates.pos': gates_pos,
         'gates.rpy': gates_rpy,
         'obstacles.pos': obstacles_pos,
-        'ctrl_timestep': 1 / CTRL_FREQ,
-        'ctrl_freq': CTRL_FREQ,
+        'env.timestep': 1 / CTRL_FREQ,
+        'env.freq': CTRL_FREQ,
     }
 
     ref = track_config['track_reference']
@@ -88,8 +88,7 @@ if __name__ == "__main__":
             initial_info['next_gate'] = next_gate_idx
             initial_info['init_thrusts'] = state[12:16]
 
-
-
+            # clear old warm start and result dict
             ctrl.reset()
 
             # sample a few steps per initial point

@@ -23,7 +23,7 @@ if __name__ == "__main__":
         mpc_config = munchify(yaml.safe_load(file))
 
     mpc_config['ctrl_timestep'] = 1 / CTRL_FREQ
-    mpc_config['ctrl_freq'] = CTRL_FREQ
+    mpc_config['env.freq'] = CTRL_FREQ
 
     f = h5py.File(hdf_path, 'w', libver='latest')
 
@@ -39,20 +39,22 @@ if __name__ == "__main__":
         gates_rpy = [gate.rpy for gate in gates]
         obstacles_pos = [obstacle.pos for obstacle in track_config.env.track.obstacles]
 
-        state = np.concatenate([track_config.env.track.drone.pos, track_config.env.track.drone.vel, track_config.env.track.drone.rpy, track_config.env.track.drone.ang_vel])
-
         initial_info = {
             'gates.pos': gates_pos,
             'gates.rpy': gates_rpy,
             'obstacles.pos': obstacles_pos,
-            'ctrl_timestep': 1 / CTRL_FREQ,
-            'ctrl_freq': CTRL_FREQ,
+            'env.timestep': 1 / CTRL_FREQ,
+            'env.freq': CTRL_FREQ,
         }
 
         planner = MinsnapPlanner(initial_info=initial_info,
-                                      initial_obs=state,
+                                      initial_obs=track_config.env.track.drone,
                                       speed=1.5,
                                       )
+
+        state = track_config.env.track.drone
+        state = np.concatenate([state['pos'], state['vel'], state['rpy'], state['ang_vel']])
+
         ctrl = MPCControl(initial_info, mpc_config)
 
         # loop mpc through entire track

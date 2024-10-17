@@ -13,6 +13,8 @@ import toml
 from munch import munchify
 from scipy.spatial.transform import Rotation as R
 
+import pybullet as p
+
 from lsy_drone_racing.control.controller import BaseController
 
 if TYPE_CHECKING:
@@ -155,13 +157,15 @@ def draw_trajectory(
             lineColorRGB=color[:3],
             physicsClientId=initial_info["pyb_client"],
         )
-    p.addUserDebugLine(
+    line = p.addUserDebugLine(
         lineFromXYZ=[ref_x[i], ref_y[i], ref_z[i]],
         lineToXYZ=[ref_x[-1], ref_y[-1], ref_z[-1]],
         lineWidth=5,
         lineColorRGB=color[:3],
         physicsClientId=initial_info["pyb_client"],
     )
+
+    return line
 
 def draw_segment_of_traj(
     initial_info: dict,

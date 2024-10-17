@@ -10,7 +10,7 @@ class MinsnapPlanner:
                  gate_index=0,
                  gate_time_constant=0.25):
 
-        self.CTRL_FREQ = initial_info["ctrl_freq"]
+        self.CTRL_FREQ = initial_info["env.freq"]
         self.gates_pos = initial_info['gates.pos']
         self.gates_rpy = initial_info['gates.rpy']
 
@@ -19,8 +19,8 @@ class MinsnapPlanner:
 
         self.waypoints.append(ms.Waypoint(
             time=time,
-            position=initial_obs[0:3],
-            velocity=initial_obs[6:9],
+            position=initial_obs['pos'],
+            velocity=initial_obs['vel'],
         ))
 
         for gate_pos, gate_rpy in zip(self.gates_pos[gate_index:], self.gates_rpy[gate_index:]):

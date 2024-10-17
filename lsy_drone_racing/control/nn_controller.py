@@ -27,14 +27,15 @@ Tips:
 
 from __future__ import annotations  # Python 3.10 type hints
 
-from pathlib import Path
-
 import numpy as np
 import numpy.typing as npt
-from stable_baselines3 import PPO
 
-from lsy_drone_racing.controller import BaseController
-from lsy_drone_racing.wrapper import ObsWrapper
+import torch
+
+from lsy_drone_racing.control import BaseController
+from lsy_drone_racing.utils.utils import draw_trajectory, draw_segment_of_traj
+
+from examples.nn_model import NeuralNetwork
 
 
 class Controller(BaseController):
@@ -54,8 +55,19 @@ class Controller(BaseController):
             initial_info: Additional environment information from the reset.
         """
         super().__init__(initial_obs, initial_info)
-        self.policy = PPO.load(Path(__file__).resolve().parents[1] / "models/ppo/model.zip")
-        self._last_action = np.zeros(3)
+        self.initial_obs = initial_obs
+        self.initial_info = initial_info
+
+        self.device = 'cpu' # 'cuda:0'
+
+        self.model = NeuralNetwork()
+        self.model.to(self.device)
+        self.model.load_state_dict(torch.load("output/modality.pth", weights_only=True))
+        self.model.eval()
+
+        self.state_history = []
+        self.action_history = []
+
 
     def compute_control(
         self, obs: npt.NDArray[np.floating], info: dict | None = None
@@ -74,20 +86,35 @@ class Controller(BaseController):
         Returns:
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
-        obs_tf = ObsWrapper.observation_transform(obs, info, self._last_action)
-        action, _ = self.policy.predict(obs_tf, deterministic=True)
-        self._last_action[:] = action
-        target_pos = self.action_transform(action, obs)
-        action = np.zeros(4)
-        action[:3] = target_pos
+
+        pos = obs['pos']
+        rpy = obs['rpy']
+        vel = obs['vel']
+        body_rates = obs['ang_vel']
+        state = np.hstack([pos, vel, rpy, body_rates, info['target_gate'], np.hstack(info['obstacles.pos']), np.hstack(info['gates.pos']), np.hstack(info['gates.rpy'])])
+        obs = torch.tensor(state, device=self.device, dtype=torch.float32)
+
+        if len(self.state_history):
+            draw_segment_of_traj(self.initial_info, self.state_history[-1][0:3], pos, [0, 1, 0, 1])
+
+        actions = self.model(obs).detach().cpu().numpy()
+        actions = actions.reshape(13, 5).T
+        action = actions[0]
+
+        self.state_history.append(state)
+        self.action_history.append(action)
+
         return action
 
-    @staticmethod
-    def action_transform(
-        action: npt.NDArray[np.floating], obs: npt.NDArray[np.floating]
-    ) -> npt.NDArray[np.floating]:
-        drone_pos = obs[:3]
-        return drone_pos + action
-
     def episode_reset(self):
-        self._last_action = np.zeros(3)
+        self.action_history = []
+        self.state_history = []
+
+    def save_episode(self, file):
+        pass
+
+    def episode_learn(self):
+        pass
+
+    def reset(self):
+        pass

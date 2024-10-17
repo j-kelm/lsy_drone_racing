@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 from examples.planner import MinsnapPlanner
-from examples.mpc_controller import MPC
+from examples.mpc import MPC
 from examples.model import Model
 from examples.constraints import obstacle_constraints, gate_constraints, to_rbf_potential
 
@@ -25,8 +25,9 @@ class Control:
             initial_info: Additional environment information from the reset.
         """
         # Save environment and control parameters.
-        self.CTRL_TIMESTEP = initial_info["ctrl_timestep"]
-        self.CTRL_FREQ = initial_info["ctrl_freq"]
+        self.CTRL_FREQ = initial_info["env.freq"]
+        self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
+
         self.initial_obs = initial_obs
         self.initial_info = initial_info
 
