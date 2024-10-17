@@ -3,3 +3,6 @@
 
     sim
     drone
+    physics
+    noise
+    symbolic
