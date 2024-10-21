@@ -33,9 +33,9 @@ import numpy.typing as npt
 import torch
 
 from lsy_drone_racing.control import BaseController
-from lsy_drone_racing.utils.utils import draw_trajectory, draw_segment_of_traj
+from lsy_drone_racing.utils.utils import draw_segment_of_traj
 
-from examples.nn_model import NeuralNetwork
+from lsy_drone_racing.control.nn.nn_model import NeuralNetwork
 
 
 class Controller(BaseController):
@@ -58,11 +58,11 @@ class Controller(BaseController):
         self.initial_obs = initial_obs
         self.initial_info = initial_info
 
-        self.device = 'cpu' # 'cuda:0'
+        self.device = 'cuda:0'
 
-        self.model = NeuralNetwork()
+        self.model = NeuralNetwork(49)
         self.model.to(self.device)
-        self.model.load_state_dict(torch.load("output/modality.pth", weights_only=True))
+        self.model.load_state_dict(torch.load("output/race.pth", weights_only=True))
         self.model.eval()
 
         self.state_history = []

@@ -5,7 +5,7 @@ from termcolor import colored
 import casadi as cs
 import numpy as np
 
-from examples.mpc_utils import rk_discrete
+from lsy_drone_racing.control.mpc.mpc_utils import rk_discrete
 
 
 class MPC:

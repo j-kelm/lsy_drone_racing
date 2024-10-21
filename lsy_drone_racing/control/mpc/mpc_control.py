@@ -2,11 +2,10 @@ from __future__ import annotations  # Python 3.10 type hints
 
 import numpy as np
 import numpy.typing as npt
-from sympy.physics.units import action
 
-from examples.mpc import MPC
-from examples.model import Model
-from examples.constraints import obstacle_constraints, gate_constraints, to_rbf_potential
+from lsy_drone_racing.control.mpc.mpc import MPC
+from lsy_drone_racing.control.mpc.model import Model
+from lsy_drone_racing.control.mpc.constraints import obstacle_constraints, gate_constraints, to_rbf_potential
 
 
 class MPCControl:
@@ -36,7 +35,7 @@ class MPCControl:
         self.model = Model(info=None)
 
         self.model.state_constraints += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
-        self.model.state_constraints_soft += [lambda x: -84 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 84 / 180 * np.pi] # max roll and pitch
+        # self.model.state_constraints_soft += [lambda x: -84 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 84 / 180 * np.pi] # max roll and pitch
         self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]

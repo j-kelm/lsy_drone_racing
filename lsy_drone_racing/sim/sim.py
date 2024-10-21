@@ -95,7 +95,7 @@ class Sim:
         min_thrust, max_thrust = self.drone.params.min_thrust, self.drone.params.max_thrust
         self.action_space = spaces.Box(low=min_thrust, high=max_thrust, shape=(4,))
         # pos in meters, rpy in radians, vel in m/s ang_vel in rad/s
-        rpy_max = np.array([85 / 180 * np.pi, 85 / 180 * np.pi, np.pi], np.float32)  # Yaw unbounded
+        rpy_max = np.array([160 / 180 * np.pi, 160 / 180 * np.pi, np.pi], np.float32)  # Yaw unbounded
         max_flt = np.full(3, np.finfo(np.float32).max, np.float32)
         pos_low, pos_high = np.array([-3, -3, 0]), np.array([3, 3, 2.5])
         # State space uses 64-bit floats for better compatibility with pycffirmware.

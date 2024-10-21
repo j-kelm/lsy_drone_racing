@@ -36,12 +36,13 @@ import numpy.typing as npt
 
 from munch import munchify
 import yaml
+from numpy._typing import NDArray
 
 from lsy_drone_racing.control import BaseController
 from lsy_drone_racing.utils.utils import draw_trajectory, draw_segment_of_traj
 
-from examples.planner import MinsnapPlanner
-from examples.mpc_control import MPCControl
+from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
+from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 
 
 class Controller(BaseController):
@@ -80,10 +81,7 @@ class Controller(BaseController):
 
         self.episode_reset()
 
-        self.state_history = []
-        self.action_history = []
-
-        line = draw_trajectory(initial_info, self.planner.waypoint_pos,
+        self.line = draw_trajectory(initial_info, self.planner.waypoint_pos,
                         self.planner.ref[0], self.planner.ref[1], self.planner.ref[2],
                         num_plot_points=200)
 
@@ -111,12 +109,15 @@ class Controller(BaseController):
         body_rates = obs['ang_vel']
         state = np.concatenate([pos, vel, rpy, body_rates])
 
+        if 'step' not in info:
+            info['step'] = self._tick
+
         if len(self.state_history):
             draw_segment_of_traj(self.initial_info, self.state_history[-1][0:3], pos, [0, 1, 0, 1])
 
         info['gate_prox'] = self.planner.gate_prox
 
-        inputs, next_state, outputs = self.ctrl.compute_control(state, self.planner.ref, info)
+        inputs, next_state, outputs = self.ctrl.compute_control(state, self.planner.ref[:, 1:], info)
 
         target_pos = next_state[:3]
         target_vel = next_state[3:6]
@@ -135,6 +136,18 @@ class Controller(BaseController):
     def episode_reset(self):
         self.action_history = []
         self.state_history = []
+        self._tick = 0
+
+    def step_callback(
+        self,
+        action: NDArray[np.floating],
+        obs: NDArray[np.floating],
+        reward: float,
+        terminated: bool,
+        truncated: bool,
+        info: dict,
+    ):
+        self._tick += 1
 
     def save_episode(self, file):
         mpc_states = np.swapaxes(np.array(self.ctrl.ctrl.results_dict['horizon_states']), 0, 1)

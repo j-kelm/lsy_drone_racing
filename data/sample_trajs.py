@@ -5,12 +5,12 @@ from munch import munchify
 import yaml
 import toml
 
-from examples.mpc_control import MPCControl
-from examples.planner import MinsnapPlanner
+from lsy_drone_racing.control.mpc.mpc_control import MPCControl
+from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
 
-NUM_TRACKS = 1
+NUM_TRACKS = 3
 CTRL_FREQ = 30
-hdf_path = "output/track_data.hdf5"
+hdf_path = "output/track_list.hdf5"
 
 def dict_to_group(root, name: str, data: dict):
     grp = root.create_group(name)
@@ -43,7 +43,6 @@ if __name__ == "__main__":
             'gates.pos': gates_pos,
             'gates.rpy': gates_rpy,
             'obstacles.pos': obstacles_pos,
-            'env.timestep': 1 / CTRL_FREQ,
             'env.freq': CTRL_FREQ,
         }
 

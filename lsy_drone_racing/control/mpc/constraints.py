@@ -1,7 +1,7 @@
 import numpy as np
 import casadi as cs
 
-from examples.utils import np_rot_z
+from lsy_drone_racing.control.utils import np_rot_z
 
 def vblock_constraint(obstacle_center, length, r=0.15):
     return lambda x:  ((x[0] - obstacle_center[0]) / r) ** 2 + ((x[1] - obstacle_center[1]) / r) ** 2 + (

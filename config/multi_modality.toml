@@ -1,10 +1,24 @@
+# Level 3
+
+# | Evaluation Scenario | Rand. Inertial Properties | Randomized Obstacles, Gates | Rand. Between Episodes | Notes             |
+# | :-----------------: | :-----------------------: | :-------------------------: | :--------------------: | :---------------: |
+# | `level3.toml`       | **Yes**                   | **Yes**                     | **Yes**                | Robustness        |
+[controller]
+file = "nn_controller.py" # Put your controller file name here. Specifying a controller as argument to scripts will override this setting. Controllers are located in `lsy_drone_racing/control/`
+
 [sim]
-physics = "pyb"                                   # pyb: PyBullet, dyn: Mathematical dynamics model, TODO: Complete the list
+# Physics options:
+# "pyb": PyBullet
+# "dyn": Mathematical dynamics model 
+# "pyb_gnd" PyBullet with ground effect
+# "pyb_drag": PyBullet with drag
+# "pyb_dw": PyBullet with downwash
+# "pyb_gnd_drag_dw": PyBullet with ground effect, drag, and downwash.
+physics = "pyb_gnd_drag_dw"
 camera_view = [5.0, -40.0, -40.0, 0.5, -1.0, 0.5]
-sim_freq = 1000                                    # Simulation frequency, in Hz
+sim_freq = 500                                    # Simulation frequency, in Hz
 ctrl_freq = 500                                   # Controller frequency, in Hz. This frequency is used to simulate the onboard controller, NOT for the environment's step function
-gui = true                                        # Enable/disable PyBullet's GUI
-save_video = ""
+gui = false                                       # Enable/disable PyBullet's GUI
 
 [sim.disturbances.action]
 type = "GaussianNoise"
@@ -16,11 +30,12 @@ low = [-0.1, -0.1, -0.1]
 high = [0.1, 0.1, 0.1]
 
 [env]
-reseed = false   # Whether to re-seed the random number generator between episodes
-seed = 1337      # Random seed
-freq = 30        # Frequency of the environment's step function, in Hz
-symbolic = false # Whether to include symbolic expressions in the info dict. Note: This can interfere with multiprocessing! If you want to parallelize your training, set this to false.
-action_mode = "fullstate"
+id = "DroneRacing-v0" # Either "DroneRacing-v0" or "DroneRacingThrust-v0". If using "DroneRacingThrust-v0", the drone will use the thrust controller instead of the position controller.
+reseed = false        # Whether to re-seed the random number generator between episodes
+seed = 1338           # Random seed
+freq = 30             # Frequency of the environment's step function, in Hz
+symbolic = false      # Whether to include symbolic expressions in the info dict. Note: This can interfere with multiprocessing! If you want to parallelize your training, set this to false.
+sensor_range = 0.45   # Range at which the exact location of gates and obstacles become visible to the drone. Objects that are not in the drone's sensor range report their nominal position.
 
 [env.track]
 # Tall gates: 1.0m height. Short gates: 0.525m height. Height is measured from the ground to the
@@ -29,7 +44,7 @@ action_mode = "fullstate"
 pos = [1.0, 0.0, 0.525]
 rpy = [0.0, 0.0, -1.57079]
 
-# Obstacle height: 1.05m. Height is measured from the ground to the top of the obstacle.
+# Obstacle height: 0.85m. Height is measured from the ground to the top of the obstacle.
 [[env.track.obstacles]]
 pos = [-0.0, 0.0, 1.05]
 
@@ -38,17 +53,6 @@ pos = [-1.0, 0.0, 0.525]
 rpy = [0, 0, 0]
 vel = [0, 0, 0]
 ang_vel = [0, 0, 0]
-
-[env.randomization.drone_pos]
-type = "uniform" # Everything that can be used as a distribution in numpy.random
-# Kwargs that are permissable in the np random function
-low = [-0.1, -0.1, 0.0]
-high = [0.1, 0.1, 0.02]
-
-[env.randomization.drone_rpy]
-type = "uniform"
-low = [-0.1, -0.1, -0.1]
-high = [0.1, 0.1, 0.1]
 
 [env.randomization.drone_mass]
 type = "uniform"
@@ -62,25 +66,15 @@ high = [0.000001, 0.000001, 0.000001]
 
 [env.randomization.gate_pos]
 type = "uniform"
-low = [-0.0, -0.0, 0.0]
+low = [-0.0, -0.0, -0.0]
 high = [0.0, 0.0, 0.0]
 
 [env.randomization.gate_rpy]
 type = "uniform"
-low = [0.0, 0.0, -0.0]
+low = [0.0, 0.0, 0.0]
 high = [0.0, 0.0, 0.0]
 
 [env.randomization.obstacle_pos]
 type = "uniform"
-low = [-0.0, -0.0, 0.0]
+low = [0.0, 0.0, 0.0]
 high = [0.0, 0.0, 0.0]
-
-[[env.constraints]]
-type = "DefaultConstraint"
-ctype = "input"
-[[env.constraints]]
-type = "BoundedConstraint"
-ctype = "state"
-active_dims = [0, 2, 4]
-upper_bounds = [3, 3, 2]
-lower_bounds = [-3.0, -3.0, -0.1]

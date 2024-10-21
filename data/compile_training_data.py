@@ -1,14 +1,13 @@
 import h5py
 import numpy as np
 
-hdf_path = "output/track_data.hdf5"
-output_path = "output/training_data.hdf5"
+hdf_path = "output/race_data.hdf5"
+output_path = "output/race_data.npz"
 
 PREDICTION_HORIZON = 5 # steps, must be bigger than horizon from MPC
 
 if __name__ == '__main__':
     in_file = h5py.File(hdf_path, 'r', libver='latest')
-    out_file = h5py.File(output_path, 'w', libver='latest')
 
     # input: state (12,) |  gate_idx (1,) | obstacles (3 x N,) | gates (6 x M,)
     # output: actions (13, T)
@@ -31,7 +30,7 @@ if __name__ == '__main__':
                             for snippet_key in point_grp:
                                 if 'snippet_' in snippet_key:
                                     snippet = point_grp[snippet_key]
-                                    if np.array(snippet['solution_found']).all():
+                                    if np.array(snippet['solution_found']).all() and (np.array(snippet['objective']) < 1.0e2).all():
                                         # fetch snippet length
                                         snippet_length = np.array(snippet['solution_found']).shape[0]
 
@@ -49,7 +48,7 @@ if __name__ == '__main__':
 
     inputs = np.concatenate(inputs, axis=0)
     outputs = np.concatenate(outputs, axis=0)
-    np.savez_compressed("output/training.npz", inputs=inputs, outputs=outputs)
+    np.savez_compressed(output_path, inputs=inputs, outputs=outputs)
 
                                         
 

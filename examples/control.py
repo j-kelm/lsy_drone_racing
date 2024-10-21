@@ -4,10 +4,10 @@ from __future__ import annotations  # Python 3.10 type hints
 import numpy as np
 import numpy.typing as npt
 
-from examples.planner import MinsnapPlanner
-from examples.mpc import MPC
-from examples.model import Model
-from examples.constraints import obstacle_constraints, gate_constraints, to_rbf_potential
+from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
+from lsy_drone_racing.control.mpc.mpc import MPC
+from lsy_drone_racing.control.mpc.model import Model
+from lsy_drone_racing.control.mpc.constraints import obstacle_constraints, gate_constraints, to_rbf_potential
 
 
 class Control:

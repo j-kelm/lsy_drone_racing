@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-states = np.load("output/training.npz")
+states = np.load("output/race_data.npz", allow_pickle=True)
 outputs = states['outputs']
 
 fig = plt.figure()
