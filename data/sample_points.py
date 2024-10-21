@@ -73,7 +73,7 @@ if __name__ == "__main__":
             'lower_state_bound': lower_state_bound,
             'upper_state_bound': upper_state_bound,
         }
-        worker_grp = track_grp.require_group(f'worker_{args.seed}')
+        worker_grp = track_grp.create_group(f'worker_{args.seed}')
         dict_to_group(worker_grp, 'config', worker_config)
 
 
