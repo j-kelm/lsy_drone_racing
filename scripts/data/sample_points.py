@@ -45,12 +45,12 @@ if __name__ == "__main__":
 
         # get random generator and seed
         rng = np.random.default_rng(seed=args.seed)
-        randomizer_range = np.array([0.25, 0.25, 0.25, 0.5, 0.5, 0.5, np.pi/4, np.pi/4, np.pi/4, np.pi/2, np.pi/2, np.pi/2, 0.01, 0.01, 0.01, 0.01]) / 1
+        randomizer_range = np.array([0.25, 0.25, 0.25, 0.5, 0.5, 0.5, np.pi/4, np.pi/4, np.pi/4, np.pi/2, np.pi/2, np.pi/2, 0.01, 0.01, 0.01, 0.01]) * 1.25
         # randomizer_range = np.array([0.05, 0.05, 0.05, 0.01, 0.01, 0.01, 0, 0, 0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01])
         lower_state_bound = np.array(
-            [-3.0, -3.0, 0.0, -2.5, -2.5, -2.5, -np.pi/2, -np.pi/2, -np.inf, -10.0, -10.0, -10.0, 0.03, 0.03, 0.03, 0.03])
+            [-3.0, -3.0, -0.1, -2.5, -2.5, -2.5, -np.pi, -np.pi, -np.inf, -10.0, -10.0, -10.0, 0.03, 0.03, 0.03, 0.03])
         upper_state_bound = np.array(
-            [3.0, 3.0, 2.5, 2.5, 2.5, 2.5, np.pi/2, np.pi/2, np.inf, 10.0, 10.0, 10.0, 0.145, 0.145, 0.145, 0.145])
+            [3.0, 3.0, 2.5, 2.5, 2.5, 2.5, np.pi, np.pi, np.inf, 10.0, 10.0, 10.0, 0.145, 0.145, 0.145, 0.145])
 
         gates_pos = track_config['gates.pos']
         gates_rpy = track_config['gates.rpy']
@@ -87,6 +87,8 @@ if __name__ == "__main__":
             }
             state_grp = worker_grp.require_group(f'point_{init_i}')
             dict_to_group(state_grp, 'config', state_config)
+
+            print(f'[WORKER{args.seed}] Step {init_i}')
 
             for run in range(args.runs):
                 # randomize initial state

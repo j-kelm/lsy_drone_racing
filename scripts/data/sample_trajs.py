@@ -8,7 +8,7 @@ import toml
 from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
 
-NUM_TRACKS = 3
+NUM_TRACKS = 1
 CTRL_FREQ = 30
 hdf_path = "output/track_list.hdf5"
 
@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     for track_i in range(NUM_TRACKS):
         # TODO: Randomize gate, obstacle and starting positions
-        with open('config/multi_modality.toml', "r") as file:
+        with open('config/cluttered_new.toml', "r") as file:
             track_config = munchify(toml.load(file))
 
         gates = track_config.env.track.gates

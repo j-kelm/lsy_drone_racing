@@ -181,7 +181,7 @@ class MPC:
         opti.minimize(cost)
 
         # Create solver
-        opts = {'expand': True, 'error_on_fail': False, 'ipopt': {'max_iter': self.max_iter}}
+        opts = {'expand': True, 'error_on_fail': False, 'ipopt.max_iter': self.max_iter, 'ipopt.print_level':0, 'print_time':0, 'record_time': 1}
         opti.solver(solver, opts)
 
         self.opti_dict = {

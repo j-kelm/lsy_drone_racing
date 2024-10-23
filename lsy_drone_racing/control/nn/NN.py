@@ -9,8 +9,8 @@ n_epochs = 400
 batch_size = 128
 
 dataset = np.load("output/race_data.npz")
-inputs = torch.tensor(dataset['inputs'], dtype=torch.float32)
-outputs = torch.tensor(dataset['outputs'], dtype=torch.float32)
+inputs = torch.tensor(dataset['obs'], dtype=torch.float32)
+outputs = torch.tensor(dataset['action'], dtype=torch.float32)
 dataset = torch.utils.data.TensorDataset(inputs, outputs)
 
 train_set, val_set = torch.utils.data.random_split(dataset, (0.8, 0.2))

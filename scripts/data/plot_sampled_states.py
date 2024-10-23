@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 states = np.load("output/race_data.npz", allow_pickle=True)
-outputs = states['outputs']
+outputs = states['action']
 
 fig = plt.figure()
 ax = plt.axes(projection="3d")

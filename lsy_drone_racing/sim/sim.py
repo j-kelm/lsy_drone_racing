@@ -102,7 +102,7 @@ class Sim:
         self.state_space = spaces.Dict(
             {
                 "pos": spaces.Box(low=pos_low, high=pos_high, dtype=np.float64),
-                "rpy": spaces.Box(low=-rpy_max, high=rpy_max, dtype=np.float64),
+                "rpy": spaces.Box(low=-max_flt, high=max_flt, dtype=np.float64),
                 "vel": spaces.Box(low=-max_flt, high=max_flt, dtype=np.float64),
                 "ang_vel": spaces.Box(low=-max_flt, high=max_flt, dtype=np.float64),
             }
