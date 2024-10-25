@@ -9,7 +9,9 @@ class NeuralNetwork(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(hidden_size, hidden_size),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden_size, 13 * 5),
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_size, 13 * 10),
         )
         self.device = device
 

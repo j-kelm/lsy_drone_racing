@@ -1,9 +1,9 @@
 #!/bin/bash
 
-procs=36
+procs=12
 
-i=25
+i=1
 while [ "$i" -le $procs ]; do
-    python data/sample_points.py --track 0 --seed $i --list "output/track_list.hdf5" --out "output/workers/" --runs 1 --steps 15 &
+    python scripts/data/sample_points.py --track 0 --seed $i --list "output/mm.hdf5" --out "output/workers/" --runs 5 --steps 15 &
     i=$(( i + 1 ))
 done

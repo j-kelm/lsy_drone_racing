@@ -31,11 +31,13 @@ import numpy as np
 import numpy.typing as npt
 
 import torch
+from wandb.cli.cli import local
 
 from lsy_drone_racing.control import BaseController
 from lsy_drone_racing.utils.utils import draw_segment_of_traj
 
 from lsy_drone_racing.control.nn.nn_model import NeuralNetwork
+from lsy_drone_racing.control.utils import to_local_obs, to_global_action, to_local_action
 
 
 class Controller(BaseController):
@@ -60,9 +62,9 @@ class Controller(BaseController):
 
         self.device = 'cuda:0'
 
-        self.model = NeuralNetwork(49)
+        self.model = NeuralNetwork(19, hidden_size=250)
         self.model.to(self.device)
-        self.model.load_state_dict(torch.load("output/race.pth", weights_only=True))
+        self.model.load_state_dict(torch.load("output/modality.pth", weights_only=True))
         self.model.eval()
 
         self.state_history = []
@@ -90,21 +92,41 @@ class Controller(BaseController):
         pos = obs['pos']
         rpy = obs['rpy']
         vel = obs['vel']
-        body_rates = obs['ang_vel']
-        state = np.hstack([pos, vel, rpy, body_rates, info['target_gate'], np.hstack(info['obstacles.pos']), np.hstack(info['gates.pos']), np.hstack(info['gates.rpy'])])
-        obs = torch.tensor(state, device=self.device, dtype=torch.float32)
+        ang_vel = obs['ang_vel']
+        gate_index = info['target_gate']
+        obstacles_pos = np.hstack(info['obstacles.pos'])
+        gates_pos = np.hstack(info['gates.pos'])
+        gates_rpy = np.hstack(info['gates.rpy'])
+
+        # Transform observation into local frame (h, vel, rp, body_rates)
+        local_obs = to_local_obs(pos=pos,
+                                 vel=vel,
+                                 rpy=rpy,
+                                 ang_vel=ang_vel,
+                                 obstacles_pos=obstacles_pos,
+                                 gates_pos=gates_pos,
+                                 gates_rpy=gates_rpy,
+                                 target_gate=gate_index,
+                                 )
+
+        obs = torch.tensor(local_obs, device=self.device, dtype=torch.float32)
 
         if len(self.state_history):
             draw_segment_of_traj(self.initial_info, self.state_history[-1][0:3], pos, [0, 1, 0, 1])
 
-        actions = self.model(obs).detach().cpu().numpy()
-        actions = actions.reshape(13, 5).T
-        action = actions[0]
+        local_actions = self.model(obs).detach().cpu().numpy()
+        local_actions = local_actions.reshape(13, -1)
+        local_action = local_actions
 
-        self.state_history.append(state)
-        self.action_history.append(action)
+        # Transform action back to global frame
+        global_action = to_global_action(local_action, rpy, pos)
+        back_to_local = to_local_action(global_action, rpy, pos)
 
-        return action
+        diff = local_action - back_to_local
+        print(diff)
+
+
+        return global_action[0, :, 0]
 
     def episode_reset(self):
         self.action_history = []

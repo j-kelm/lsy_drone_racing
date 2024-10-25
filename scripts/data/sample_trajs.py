@@ -10,7 +10,7 @@ from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
 
 NUM_TRACKS = 1
 CTRL_FREQ = 30
-hdf_path = "output/track_list.hdf5"
+hdf_path = "output/mm.hdf5"
 
 def dict_to_group(root, name: str, data: dict):
     grp = root.create_group(name)

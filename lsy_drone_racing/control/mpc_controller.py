@@ -75,7 +75,7 @@ class Controller(BaseController):
 
         self.planner = MinsnapPlanner(initial_info=self.initial_info,
                                       initial_obs=self.initial_obs,
-                                      speed=1.5,
+                                      speed=2.0,
                                       )
         self.ctrl = MPCControl(initial_info, mpc_config)
 

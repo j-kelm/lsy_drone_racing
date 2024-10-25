@@ -1,12 +1,18 @@
 import h5py
 import numpy as np
-from scipy.spatial.transform import Rotation as R
 
-hdf_path = "output/race_data.hdf5"
+from lsy_drone_racing.control.utils import to_local_obs, transform, to_local_action
+
+hdf_path = "output/track_data.hdf5"
 output_path = "output/race_data.npz"
 
-PREDICTION_HORIZON = 32 # steps, must be bigger than horizon from MPC
-EGO_PERSPECTIVE = True
+PREDICTION_HORIZON = 10 # 32 # steps, must be smaller than horizon from MPC
+LOCAL_OBSERVATION = True
+
+pos_i = slice(0, 3)
+vel_i = slice(3, 6)
+rpy_i = slice(6, 9)
+ang_vel_i = slice(9, 12)
 
 if __name__ == '__main__':
     in_file = h5py.File(hdf_path, 'r', libver='latest')
@@ -24,9 +30,9 @@ if __name__ == '__main__':
         if 'track_' in track_key:
             track_grp = in_file[track_key]
 
-            obstacles_pos = np.array(track_grp['config/obstacles.pos'])
-            gates_pos = np.array(track_grp['config/gates.pos'])
-            gates_rpy = np.array(track_grp['config/gates.rpy'])
+            obstacles_pos = np.array(track_grp['config/obstacles.pos']).T
+            gates_pos = np.array(track_grp['config/gates.pos']).T
+            gates_rpy = np.array(track_grp['config/gates.rpy']).T
 
             for worker_key in track_grp:
                 if 'worker_' in worker_key:
@@ -35,7 +41,7 @@ if __name__ == '__main__':
                         if 'point_' in point_key:
                             point_grp = worker_grp[point_key]
 
-                            gate_index = np.array(point_grp['config/next_gate'])
+                            gate_index = np.array(point_grp['config/next_gate']).T
 
                             for snippet_key in point_grp:
                                 if 'snippet_' in snippet_key:
@@ -45,31 +51,33 @@ if __name__ == '__main__':
                                         # fetch snippet length
                                         snippet_length = np.array(snippet['solution_found']).shape[0]
                                         init_states = np.array(snippet['initial_states'])[:, states_for_input]
+                                        horizon_outputs = np.array(snippet['y_horizons'])[:, :, :PREDICTION_HORIZON]
 
-                                        if EGO_PERSPECTIVE:
-                                            positions = np.array(snippet['initial_states'])[:, 0:3]
-                                            rpys = np.array(snippet['initial_states'])[:, 6:9]
-                                            vels = np.array(snippet['initial_states'])[:, 3:6]
+                                        if LOCAL_OBSERVATION:  # relative observation
+                                            positions = np.array(snippet['initial_states'])[:, pos_i]
+                                            vels = np.array(snippet['initial_states'])[:, vel_i]
+                                            rpys = np.array(snippet['initial_states'])[:, rpy_i]
+                                            ang_vels = np.array(snippet['initial_states'])[:, ang_vel_i]
 
-                                            r = R.from_euler('zyx', rpys, degrees=True).as_matrix()
 
-                                            # (N, 3, 3) x (N, 4, 3) -> (N, 4, 3)
-                                            obstacles_offset = obstacles_pos[None, :, :] - positions[:, None, :]
-                                            gates_offset = gates_pos[None, :, :] - positions[:, None, :]
-                                            for i in range(snippet_length):
-                                                obstacles_offset[i, :, :] = obstacles_offset[i, :, :] @ r[i].T
-                                                gates_offset[i, :, :] = gates_offset[i, :, :] @ r[i].T
+                                            # transform actions
+                                            local_action = to_local_action(horizon_outputs, rpys, positions)
+                                            outputs.append(local_action)
 
-                                            gates_rpy_obs = np.tensordot(r, gates_rpy, axes=([2,], [1,])).swapaxes(1, 2)
+                                            # transform observations
+                                            local_obs = to_local_obs(pos=positions,
+                                                                     vel=vels,
+                                                                     rpy=rpys,
+                                                                     ang_vel=ang_vels,
+                                                                     obstacles_pos=obstacles_pos,
+                                                                     gates_pos=gates_pos,
+                                                                     gates_rpy=gates_rpy,
+                                                                     target_gate=gate_index,
+                                                                     )
+                                            inputs.append(local_obs)
 
-                                            # obstacles_pos_obs = np.tensordot(r, obstacles_pos_obs, axes=([0, 2,], [2, 0,])).swapaxes(1, 2)
-                                            obstacles_pos_obs = obstacles_offset.reshape((snippet_length, -1))
-                                            gates_pos_obs = gates_offset.reshape((snippet_length, -1))
-                                            gates_rpy_obs = gates_rpy_obs.reshape((snippet_length, -1))
-                                            obs_states = np.hstack([])
-                                            inputs.append(np.hstack([obs_states, gate_index.T, obstacles_pos_obs, gates_pos_obs, gates_rpy_obs]))
 
-                                        else:
+                                        else:  # absolute observation
                                             init_states = np.array(snippet['initial_states'])[:, states_for_input]
                                             gate_index = np.array(point_grp['config/next_gate'])
                                             obstacles_pos = np.array(track_grp['config/obstacles.pos']).reshape((1, -1))
@@ -80,8 +88,9 @@ if __name__ == '__main__':
                                                               snippet_length, axis=0)
                                             inputs.append(np.hstack([init_states, gate_index.T, track]))
 
-                                        horizon_outputs = np.array(snippet['y_horizons'])
-                                        outputs.append(horizon_outputs[:, states_for_output, :PREDICTION_HORIZON])
+                                            outputs.append(horizon_outputs[:, states_for_output, :PREDICTION_HORIZON])
+
+
 
 
     inputs = np.concatenate(inputs, axis=0)
