@@ -42,7 +42,8 @@ from lsy_drone_racing.control import BaseController
 from lsy_drone_racing.utils.utils import draw_trajectory, draw_segment_of_traj
 
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
-from lsy_drone_racing.control.mpc.mpc_control import MPCControl
+
+from lsy_drone_racing.control.mpc.AsyncMPC import AsyncMPC
 
 
 class Controller(BaseController):
@@ -73,13 +74,25 @@ class Controller(BaseController):
         self.initial_obs = initial_obs
         self.initial_info = initial_info
 
+        self.episode_reset()
+
         self.planner = MinsnapPlanner(initial_info=self.initial_info,
                                       initial_obs=self.initial_obs,
                                       speed=2.0,
                                       )
-        self.ctrl = MPCControl(initial_info, mpc_config)
+        self.async_ctrl = AsyncMPC(initial_info=initial_info, mpc_config=mpc_config, daemon=True)
+        self.async_ctrl.start()
 
-        self.episode_reset()
+        if 'step' not in self.initial_info:
+            self.initial_info['step'] = 0
+        self.initial_info['reference'] = self.planner.ref
+        self.initial_info['gate_prox'] = self.planner.gate_prox
+
+
+        # start precomputing first actions
+        self.async_ctrl.put_obs(obs=self.initial_obs, info=self.initial_info, block=False)
+        self.last_action = self.async_ctrl.get_action(block=True)
+
 
         self.line = draw_trajectory(initial_info, self.planner.waypoint_pos,
                         self.planner.ref[0], self.planner.ref[1], self.planner.ref[2],
@@ -103,32 +116,13 @@ class Controller(BaseController):
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
 
-        pos = obs['pos']
-        rpy = obs['rpy']
-        vel = obs['vel']
-        body_rates = obs['ang_vel']
-        state = np.concatenate([pos, vel, rpy, body_rates])
-
-        if 'step' not in info:
-            info['step'] = self._tick
-
-        if len(self.state_history):
-            draw_segment_of_traj(self.initial_info, self.state_history[-1][0:3], pos, [0, 1, 0, 1])
-
+        info['step'] = self._tick
+        info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox
 
-        inputs, next_state, outputs = self.ctrl.compute_control(state, self.planner.ref[:, 1:], info)
-
-        target_pos = next_state[:3]
-        target_vel = next_state[3:6]
-        target_yaw = next_state[8]
-        target_acc = outputs[6:9]
-        target_rpy_rates = outputs[12:15]
-
-        action = np.hstack([target_pos, target_vel, target_acc, target_yaw, target_rpy_rates])
-
-        self.state_history.append(state)
-        self.action_history.append(action)
+        self.async_ctrl.put_obs(obs, info, block=False)
+        # action = self.last_action
+        action = self.async_ctrl.get_action(block=True)  # , timeout=30 * self.CTRL_TIMESTEP)
 
         return action
 
@@ -136,7 +130,7 @@ class Controller(BaseController):
     def episode_reset(self):
         self.action_history = []
         self.state_history = []
-        self._tick = 0
+        self._tick = 1
 
     def step_callback(
         self,
@@ -147,6 +141,12 @@ class Controller(BaseController):
         truncated: bool,
         info: dict,
     ):
+        if len(self.state_history):
+            draw_segment_of_traj(self.initial_info, self.state_history[-1]['pos'], obs['pos'], [0, 1, 0, 1])
+
+        self.state_history.append(obs)
+        self.action_history.append(action)
+
         self._tick += 1
 
     def save_episode(self, file):
@@ -155,12 +155,14 @@ class Controller(BaseController):
 
         np.savez(file, mpc_states=mpc_states, mpc_inputs=mpc_inputs, mpc_reference=self.ctrl.planner.ref)
 
-    def episode_learn(self):
+    def episode_callback(self):
         # use this function to plot episode data instead of learning
-        file_path = "output/states.npz"
+        # file_path = "output/states.npz"
         # self.save_episode(file_path)
         # history = np.load(file_path)
         # plot_3d(history)
+
+        self.async_ctrl.join(timeout=2)
 
     def reset(self):
         pass

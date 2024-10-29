@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing as npt
 
 from lsy_drone_racing.control.mpc.mpc import MPC
-from lsy_drone_racing.control.mpc.model import Model
+from lsy_drone_racing.control.mpc.model import DeltaModel as Model
 from lsy_drone_racing.control.mpc.constraints import obstacle_constraints, gate_constraints, to_rbf_potential
 
 
@@ -35,17 +35,19 @@ class MPCControl:
         self.model = Model(info=None)
 
         self.model.state_constraints += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
-        # self.model.state_constraints_soft += [lambda x: -84 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 84 / 180 * np.pi] # max roll and pitch
+        self.model.state_constraints_soft += [lambda x: -84 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 84 / 180 * np.pi] # max roll and pitch
         self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
+
+        # self.model.input_constraints_soft += [lambda u: -0.01 - u, lambda u: u - 0.01]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 
         ellipsoid_constraints = list()
         for obstacle_pos in self.initial_info['obstacles.pos']:
-            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.175) # r = 0.14
+            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.14) # r = 0.14
 
         for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
-            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.15) # r = 0.12
+            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.12) # r = 0.12
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 
@@ -58,7 +60,7 @@ class MPCControl:
         )
 
         self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[
-            'init_thrusts'] is not None else self.ctrl.U_EQ
+            'init_thrusts'] is not None else self.ctrl.X_EQ[-4:]
 
         self.state = None
 
@@ -84,7 +86,7 @@ class MPCControl:
         """
 
 
-        state = np.concatenate([state, self.forces])
+        state = np.concatenate([state, self.forces], axis=0)
         step = info['step']
 
         # Slice trajectory for horizon steps, if not long enough, repeat last state.
@@ -109,9 +111,9 @@ class MPCControl:
                                                                   err_on_fail=False,
                                                                   force_warm_start=True)
 
-        self.forces = next_state[12:16]
+        self.forces = next_state[12:16, 0]
 
-        return inputs, next_state, outputs
+        return inputs, outputs
 
     def reset(self):
         # clear warm start and result dict

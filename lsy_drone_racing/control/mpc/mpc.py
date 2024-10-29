@@ -25,6 +25,7 @@ class MPC:
                  seed: int = 0,
                  solver: str = 'ipopt',
                  max_iter: int = 150,
+                 horizon_skip: int = 1,
                  **kwargs
                  ):
 
@@ -68,6 +69,7 @@ class MPC:
         self.soft_penalty = soft_penalty
         self.warmstart = warmstart
         self.terminate_run_on_done = terminate_run_on_done
+        self.horizon_skip = horizon_skip
 
         self.solver = solver
         self.max_iter = max_iter
@@ -148,7 +150,7 @@ class MPC:
         # Constraints
         for i in range(self.T):
             # Dynamics constraints.
-            next_state = self.dynamics_func(x0=x_var[:, i], p=u_var[:, i])['xf']
+            next_state = self.dynamics_func(x0=x_var[:-4, i], p=u_var[:, i])['xf']
             opti.subject_to(x_var[:, i + 1] == next_state)
 
             # hard constraints
@@ -269,8 +271,8 @@ class MPC:
             # shift previous solutions by 1 step
             x_guess = deepcopy(self.x_prev)
             u_guess = deepcopy(self.u_prev)
-            x_guess[:, :-1] = x_guess[:, 1:]
-            u_guess[:-1] = u_guess[1:]
+            x_guess[:, :-self.horizon_skip] = x_guess[:, self.horizon_skip:]
+            u_guess[:-self.horizon_skip] = u_guess[self.horizon_skip:]
             opti.set_initial(x_var, x_guess)
             opti.set_initial(u_var, u_guess)
 
@@ -278,10 +280,10 @@ class MPC:
         try:
             sol = opti.solve()
             x_val, u_val = sol.value(x_var), sol.value(u_var)
-        except RuntimeError:
-            print(colored('Infeasible MPC Problem', 'red'))
+        except RuntimeError as e:
+            print(colored(f'Infeasible MPC Problem', 'red'))
             if err_on_fail:
-                raise RuntimeError('Infeasible MPC problem')
+                raise e
 
             if self.solver == 'ipopt':
                 x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
@@ -320,20 +322,20 @@ class MPC:
             self.results_dict['solution_found'].append(stats['success'])
             self.results_dict['iter_count'].append(stats['iter_count'])
             self.results_dict['obj'].append(stats['iterations']['obj'][-1])
+
         # Take the first action from the solved action sequence.
         if u_val.ndim > 1:
-            action = u_val[:, 0]
-            state = x_val[:, 1]
-            output = y[:, 0]
+            actions = u_val[:, 0:]
+            states = x_val[:, 1:]
+            outputs = y[:, 0:]
         else:
-            action = np.array([u_val[0]])
-            state = np.array([x_val[1]])
-            output = np.array([y[0]])
-        self.prev_action = action
-        self.prev_state = state
+            actions = np.array([u_val[0:]])
+            states = np.array([x_val[1:]])
+            outputs = np.array([y[0:]])
+
         time_after = time.time()
         print('MPC select_action time: ', time_after - time_before)
-        return action, state, output
+        return actions, states, outputs
 
     def to_horizon(self, goal_states):
         '''Constructs reference states along mpc horizon.(nx, T+1).'''
