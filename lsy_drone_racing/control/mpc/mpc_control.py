@@ -38,7 +38,7 @@ class MPCControl:
         self.model.state_constraints_soft += [lambda x: -84 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 84 / 180 * np.pi] # max roll and pitch
         self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
 
-        # self.model.input_constraints_soft += [lambda u: -0.01 - u, lambda u: u - 0.01]
+        self.model.input_constraints_soft += [lambda u: -0.02 - u, lambda u: u - 0.02]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 
@@ -97,7 +97,7 @@ class MPCControl:
         q_pos[0:3] = self.config['q'][0:3]
         info['q'] = np.array(self.config['q'])[:, np.newaxis] + 3.0 * np.outer(q_pos, gate_prox)
         try:
-            inputs, next_state, outputs = self.ctrl.select_action(obs=state,
+            inputs, states, outputs = self.ctrl.select_action(obs=state,
                                                                   ref=remaining_ref,
                                                                   info=info,
                                                                   err_on_fail=True)
@@ -105,15 +105,15 @@ class MPCControl:
         except RuntimeError:  # use reference warm start on fail
             print('[WARN] First attempt failed, trying again with reference warm-start.')
             info['x_guess'] = None
-            inputs, next_state, outputs = self.ctrl.select_action(obs=state,
+            inputs, states, outputs = self.ctrl.select_action(obs=state,
                                                                   ref=remaining_ref,
                                                                   info=info,
                                                                   err_on_fail=False,
                                                                   force_warm_start=True)
 
-        self.forces = next_state[12:16, 0]
+        self.forces = states[12:16, 1]
 
-        return inputs, outputs
+        return inputs, states, outputs
 
     def reset(self):
         # clear warm start and result dict

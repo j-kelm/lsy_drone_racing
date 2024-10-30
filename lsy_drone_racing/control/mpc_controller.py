@@ -39,6 +39,7 @@ import yaml
 from numpy._typing import NDArray
 
 from lsy_drone_racing.control import BaseController
+from lsy_drone_racing.control.Predictor import SymbolicPredictor
 from lsy_drone_racing.utils.utils import draw_trajectory, draw_segment_of_traj
 
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
@@ -78,10 +79,10 @@ class Controller(BaseController):
 
         self.planner = MinsnapPlanner(initial_info=self.initial_info,
                                       initial_obs=self.initial_obs,
-                                      speed=2.0,
+                                      speed=0.5,
                                       )
         self.async_ctrl = AsyncMPC(initial_info=initial_info, mpc_config=mpc_config, daemon=True)
-        self.async_ctrl.start()
+        # self.async_ctrl.start()
 
         if 'step' not in self.initial_info:
             self.initial_info['step'] = 0
@@ -90,13 +91,22 @@ class Controller(BaseController):
 
 
         # start precomputing first actions
-        self.async_ctrl.put_obs(obs=self.initial_obs, info=self.initial_info, block=False)
-        self.last_action = self.async_ctrl.get_action(block=True)
+        # self.async_ctrl.put_obs(obs=self.initial_obs, info=self.initial_info, block=False)
+        # self.last_action = self.async_ctrl.get_action(block=True)
 
 
         self.line = draw_trajectory(initial_info, self.planner.waypoint_pos,
                         self.planner.ref[0], self.planner.ref[1], self.planner.ref[2],
                         num_plot_points=200)
+
+        pos = initial_obs['pos']
+        rpy = initial_obs['rpy']
+        vel = initial_obs['vel']
+        body_rates = initial_obs['ang_vel']
+        self.last_obs = np.concatenate([pos, vel, rpy, body_rates])
+        self.last_input = None
+        self.predictor = SymbolicPredictor()
+
 
     def compute_control(
         self, obs: npt.NDArray[np.floating], info: dict | None = None
@@ -116,15 +126,34 @@ class Controller(BaseController):
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
 
+        pos = obs['pos']
+        rpy = obs['rpy']
+        vel = obs['vel']
+        body_rates = obs['ang_vel']  # Are these actually legit values?!?
+        new_obs = np.concatenate([pos, vel, rpy, body_rates])
+
         info['step'] = self._tick
         info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox
 
-        self.async_ctrl.put_obs(obs, info, block=False)
-        # action = self.last_action
-        action = self.async_ctrl.get_action(block=True)  # , timeout=30 * self.CTRL_TIMESTEP)
+        obs, info = self.predictor.predict(self.last_obs, info=info, inputs=self.last_input)
 
-        return action
+        err = obs - new_obs
+        print(err)
+
+        out = self.async_ctrl.compute_control(new_obs, info)
+
+        self.last_obs = new_obs
+        self.last_input = out['inputs'][0]
+
+        # sanity check
+        obs, info = self.predictor.predict(out['states'][0, :12], info=info, inputs=self.last_input)
+
+
+        # self.async_ctrl.put_obs(obs, info, block=False)
+        # action = self.async_ctrl.get_action(block=True)  # , timeout=30 * self.CTRL_TIMESTEP)
+
+        return out['actions'][0]
 
 
     def episode_reset(self):
@@ -162,7 +191,8 @@ class Controller(BaseController):
         # history = np.load(file_path)
         # plot_3d(history)
 
-        self.async_ctrl.join(timeout=2)
+        # self.async_ctrl.join(timeout=2)
+        pass
 
     def reset(self):
         pass

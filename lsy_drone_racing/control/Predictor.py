@@ -1,6 +1,6 @@
 import numpy as np
 
-from lsy_drone_racing.control.mpc.model import PredictionModel
+from lsy_drone_racing.control.mpc.model import PredictionModel, DeltaModel
 from lsy_drone_racing.control.mpc.mpc_utils import rk_discrete
 
 
@@ -14,12 +14,14 @@ class SymbolicPredictor:
                                          self.model.dt)
 
     def predict(self, obs, info, inputs):
-        if not len(inputs):
-            inputs = np.atleast_2d(self.model.U_EQ)
+        if inputs is None:
+            inputs = self.model.U_EQ
+
+        inputs = np.atleast_2d(inputs)
 
         x = obs
         for u in inputs:
-            # x = self.dynamics_func(x0=x, p=u)['xf']
-            info['step'] += 1
+            x = self.dynamics_func(x0=x, p=u)['xf']
+            # info['step'] += 1
 
         return np.array(x).flatten(), info

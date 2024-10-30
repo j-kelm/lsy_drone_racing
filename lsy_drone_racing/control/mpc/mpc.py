@@ -150,8 +150,13 @@ class MPC:
         # Constraints
         for i in range(self.T):
             # Dynamics constraints.
-            next_state = self.dynamics_func(x0=x_var[:-4, i], p=u_var[:, i])['xf']
-            opti.subject_to(x_var[:, i + 1] == next_state)
+            # next_state = self.dynamics_func(x0=x_var[:, i], p=u_var[:, i])['xf']
+            # opti.subject_to(x_var[:, i + 1] == next_state)
+
+            next_state = self.dynamics_func(x0=x_var[:, i], p=np.zeros(nu))['xf']
+            opti.subject_to(x_var[:-4, i + 1] == next_state[:-4])
+            opti.subject_to(x_var[-4:, i + 1] == x_var[-4:, i] + u_var[:, i])
+
 
             # hard constraints
             for sc_i, state_constraint in enumerate(self.state_constraints):
@@ -325,12 +330,12 @@ class MPC:
 
         # Take the first action from the solved action sequence.
         if u_val.ndim > 1:
-            actions = u_val[:, 0:]
-            states = x_val[:, 1:]
-            outputs = y[:, 0:]
+            actions = np.array(u_val[:, 0:])
+            states = np.array(x_val[:, 0:])
+            outputs = np.array(y[:, 0:])
         else:
             actions = np.array([u_val[0:]])
-            states = np.array([x_val[1:]])
+            states = np.array([x_val[0:]])
             outputs = np.array([y[0:]])
 
         time_after = time.time()
