@@ -10,9 +10,9 @@ class MinsnapPlanner:
                  gate_index=0,
                  gate_time_constant=0.25):
 
-        self.CTRL_FREQ = initial_info["env.freq"]
-        self.gates_pos = initial_info['gates.pos']
-        self.gates_rpy = initial_info['gates.rpy']
+        self.CTRL_FREQ = initial_info["env_freq"]
+        self.gates_pos = initial_obs['gates_pos']
+        self.gates_rpy = initial_obs['gates_rpy']
 
         self.waypoints = list()  # without helper waypoints
         time = 0.0

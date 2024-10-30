@@ -9,7 +9,7 @@ from lsy_drone_racing.control.mpc.constraints import obstacle_constraints, gate_
 
 
 class MPCControl:
-    def __init__(self, initial_info: dict, config: dict):
+    def __init__(self, initial_info: dict, initial_obs: dict, config: dict):
         """Initialization of the controller.
 
         INSTRUCTIONS:
@@ -23,10 +23,11 @@ class MPCControl:
             initial_info: Additional environment information from the reset.
         """
         # Save environment and control parameters.
-        self.CTRL_FREQ = initial_info["env.freq"]
+        self.CTRL_FREQ = initial_info["env_freq"]
         self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
 
         self.initial_info = initial_info
+        self.initial_obs = initial_obs
 
         self.config = config
         # self.multi_starts = self.config['multi_starts']
@@ -43,10 +44,10 @@ class MPCControl:
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 
         ellipsoid_constraints = list()
-        for obstacle_pos in self.initial_info['obstacles.pos']:
+        for obstacle_pos in self.initial_obs['obstacles_pos']:
             ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.14) # r = 0.14
 
-        for gate_pos, gate_rpy in zip(self.initial_info['gates.pos'], self.initial_info['gates.rpy']):
+        for gate_pos, gate_rpy in zip(self.initial_obs['gates_pos'], self.initial_obs['gates_rpy']):
             ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.12) # r = 0.12
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]

@@ -70,7 +70,7 @@ class Controller(BaseController):
             mpc_config = munchify(yaml.safe_load(file))
 
         # Save environment and control parameters.
-        self.CTRL_FREQ = initial_info['env.freq']
+        self.CTRL_FREQ = initial_info['env_freq']
         self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
         self.initial_obs = initial_obs
         self.initial_info = initial_info
@@ -79,9 +79,9 @@ class Controller(BaseController):
 
         self.planner = MinsnapPlanner(initial_info=self.initial_info,
                                       initial_obs=self.initial_obs,
-                                      speed=0.5,
+                                      speed=1.0,
                                       )
-        self.async_ctrl = AsyncMPC(initial_info=initial_info, mpc_config=mpc_config, daemon=True)
+        self.async_ctrl = AsyncMPC(initial_info=initial_info,initial_obs=initial_obs, mpc_config=mpc_config, daemon=True)
         # self.async_ctrl.start()
 
         if 'step' not in self.initial_info:
@@ -95,9 +95,9 @@ class Controller(BaseController):
         # self.last_action = self.async_ctrl.get_action(block=True)
 
 
-        self.line = draw_trajectory(initial_info, self.planner.waypoint_pos,
-                        self.planner.ref[0], self.planner.ref[1], self.planner.ref[2],
-                        num_plot_points=200)
+        # self.line = draw_trajectory(initial_info, self.planner.waypoint_pos,
+        #                 self.planner.ref[0], self.planner.ref[1], self.planner.ref[2],
+        #                 num_plot_points=200)
 
         pos = initial_obs['pos']
         rpy = initial_obs['rpy']
@@ -170,8 +170,8 @@ class Controller(BaseController):
         truncated: bool,
         info: dict,
     ):
-        if len(self.state_history):
-            draw_segment_of_traj(self.initial_info, self.state_history[-1]['pos'], obs['pos'], [0, 1, 0, 1])
+        # if len(self.state_history):
+        #     draw_segment_of_traj(self.initial_info, self.state_history[-1]['pos'], obs['pos'], [0, 1, 0, 1])
 
         self.state_history.append(obs)
         self.action_history.append(action)
