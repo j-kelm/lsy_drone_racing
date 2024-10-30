@@ -1,4 +1,13 @@
-"""Example implementation of a controller using a pre-trained PPO model."""
+"""Example implementation of a controller using a pre-trained PPO model.
+
+The controller loads the pre-trained weights of the policy and uses it to compute the next action
+based on the current observation.
+
+.. note::
+    You need to install the 
+    `stable-baselines3 <https://stable-baselines3.readthedocs.io/en/master/>`_ library to use this
+    controller.
+"""
 
 from __future__ import annotations  # Python 3.10 type hints
 
@@ -61,16 +70,16 @@ class PPOController(BaseController):
         Returns:
             Transformed observation as a numpy array.
         """
-        gate_vec = info["gates.pos"][info["target_gate"]].copy()
+        gate_vec = obs["gates_pos"][obs["target_gate"]].copy()
         gate_vec /= np.linalg.norm(gate_vec)
-        gate_angle = info["gates.rpy"][info["target_gate"], 2]
+        gate_angle = obs["gates_rpy"][obs["target_gate"], 2]
         gate_direction = np.array([np.cos(gate_angle), np.sin(gate_angle)])
-        to_obstacles = info["obstacles.pos"] - obs["pos"]
-        gate_id_onehot = np.zeros(info["gates.pos"].shape[0])
-        gate_id_onehot[info["target_gate"]] = 1
+        to_obstacles = obs["obstacles_pos"] - obs["pos"]
+        gate_id_onehot = np.zeros(obs["gates_pos"].shape[0])
+        gate_id_onehot[obs["target_gate"]] = 1
 
         gates_pose = np.concatenate(
-            [np.concatenate([p, [y]]) for p, y in zip(info["gates.pos"], info["gates.rpy"][:, 2])]
+            [np.concatenate([p, [y]]) for p, y in zip(obs["gates_pos"], obs["gates_rpy"][:, 2])]
         )
         state = np.concatenate(
             [
@@ -79,16 +88,16 @@ class PPOController(BaseController):
                 obs["vel"],
                 obs["ang_vel"],
                 gates_pose,
-                info["gates.in_range"],
-                info["obstacles.pos"].flatten(),
-                info["obstacles.in_range"],
+                obs["gates_in_range"],
+                obs["obstacles_pos"].flatten(),
+                obs["obstacles_in_range"],
             ]
         )
         obs = np.concatenate(
             [
                 state,
                 gate_id_onehot,
-                (info["gates.pos"] - obs["pos"]).flatten(),
+                (obs["gates_pos"] - obs["pos"]).flatten(),
                 to_obstacles.flatten(),
                 gate_vec,
                 gate_direction,

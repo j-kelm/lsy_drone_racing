@@ -10,7 +10,7 @@ from lsy_drone_racing.utils import check_gate_pass, load_config, load_controller
 
 @pytest.mark.unit
 def test_load_config():
-    config = load_config(Path(__file__).parents[2] / "config/test.toml")
+    config = load_config(Path(__file__).parents[3] / "config/level0.toml")
     assert isinstance(config, dict), f"Config file is not a dictionary: {config}"
 
 
@@ -44,6 +44,10 @@ def test_check_gate_pass():
     # Test passing outside the gate boundaries
     assert not check_gate_pass(
         gate_pos, gate_rot, gate_size, np.array([2, 1, 0]), np.array([2, -1, 0])
+    )
+    # Test passing close to the gate
+    assert not check_gate_pass(
+        gate_pos, gate_rot, gate_size, np.array([0.51, 1, 0]), np.array([0.51, -1, 0])
     )
     # Test passing opposite direction
     assert not check_gate_pass(

@@ -5,11 +5,11 @@ functionality for simulating drone dynamics, control, and environmental interact
 
 Features:
 
-- PyBullet-based physics simulation
-- Configurable drone parameters and initial conditions
-- Support for a single drone (multi-drone support not yet implemented)
-- Disturbance and randomization options
-- Integration with symbolic models
+* PyBullet-based physics simulation
+* Configurable drone parameters and initial conditions
+* Support for a single drone (multi-drone support not yet implemented)
+* Disturbance and randomization options
+* Integration with symbolic models
 
 The simulation is derived from the gym-pybullet-drones project:
 https://github.com/utiasDSL/gym-pybullet-drones
@@ -50,7 +50,11 @@ logger = logging.getLogger(__name__)
 
 
 class Sim:
-    """Drone simulation based on gym-pybullet-drones."""
+    """Drone simulation based on pybullet and models from the Learning Systems and Robotics Lab.
+
+    We implement a simplified version of the gym-pybullet-drones environment specifically designed
+    for drone racing.
+    """
 
     URDF_DIR = Path(__file__).resolve().parent / "assets"
 

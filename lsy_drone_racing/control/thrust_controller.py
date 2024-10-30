@@ -1,3 +1,13 @@
+"""This module implements a ThrustController for quadrotor control.
+
+It utilizes the collective thrust interface for drone control to compute control commands based on
+current state observations and desired waypoints. The attitude control is handled by computing a
+PID control law for position tracking, incorporating gravity compensation in thrust calculations.
+
+The waypoints are generated using cubic spline interpolation from a set of predefined waypoints.
+Note that the trajectory uses pre-defined waypoints instead of dynamically generating a good path.
+"""
+
 from __future__ import annotations  # Python 3.10 type hints
 
 import math
@@ -16,7 +26,7 @@ if TYPE_CHECKING:
 
 
 class ThrustController(BaseController):
-    """Example of a controller using the collective thrust interface.
+    """Example of a controller using the collective thrust and attitude interface.
 
     Modified from https://github.com/utiasDSL/crazyswarm-import/blob/ad2f7ea987f458a504248a1754b124ba39fc2f21/ros_ws/src/crazyswarm/scripts/position_ctl_m.py
     """
@@ -30,8 +40,8 @@ class ThrustController(BaseController):
             initial_info: Additional environment information from the reset.
         """
         super().__init__(initial_obs, initial_info)
-        self.low_level_ctrl_freq = initial_info["sim.ctrl_freq"]
-        self.drone_mass = initial_info["sim.drone.mass"]
+        self.low_level_ctrl_freq = initial_info["low_level_ctrl_freq"]
+        self.drone_mass = initial_info["drone_mass"]
         self.kp = np.array([0.4, 0.4, 1.25])
         self.ki = np.array([0.05, 0.05, 0.05])
         self.kd = np.array([0.2, 0.2, 0.4])
@@ -43,15 +53,16 @@ class ThrustController(BaseController):
         # Same waypoints as in the trajectory controller. Determined by trial and error.
         waypoints = np.array(
             [
-                [1.0, 1.0, 0.05],
+                [1.0, 1.0, 0.0],
+                [0.8, 0.5, 0.2],
                 [0.55, -0.8, 0.4],
                 [0.2, -1.8, 0.65],
                 [1.1, -1.35, 1.0],
                 [0.2, 0.0, 0.65],
                 [0.0, 0.75, 0.525],
-                [-0.2, 0.75, 1.2],
-                [-0.5, -0.5, 1.0],
-                [-0.5, -1.0, 0.8],
+                [0.0, 0.75, 1.1],
+                [-0.5, -0.5, 1.1],
+                [-0.5, -1.0, 1.1],
             ]
         )
         # Scale trajectory between 0 and 1
@@ -60,8 +71,8 @@ class ThrustController(BaseController):
         cs_y = CubicSpline(ts, waypoints[:, 1])
         cs_z = CubicSpline(ts, waypoints[:, 2])
 
-        des_completion_time = 10
-        ts = np.linspace(0, 1, int(initial_info["env.freq"] * des_completion_time))
+        des_completion_time = 15
+        ts = np.linspace(0, 1, int(initial_info["env_freq"] * des_completion_time))
 
         self.x_des = cs_x(ts)
         self.y_des = cs_y(ts)
@@ -95,7 +106,8 @@ class ThrustController(BaseController):
         Returns:
             The collective thrust and orientation [t_des, r_des, p_des, y_des] as a numpy array.
         """
-        des_pos = np.array([self.x_des[self._tick], self.y_des[self._tick], self.z_des[self._tick]])
+        i = min(self._tick, len(self.x_des) - 1)
+        des_pos = np.array([self.x_des[i], self.y_des[i], self.z_des[i]])
         des_vel = np.zeros(3)
         des_yaw = 0.0
 
@@ -134,9 +146,6 @@ class ThrustController(BaseController):
         R_desired = np.vstack([x_axis_desired, y_axis_desired, z_axis_desired]).T
         euler_desired = R.from_matrix(R_desired).as_euler("xyz", degrees=False)
         thrust_desired, euler_desired
-
-        # Invert the pitch because of the legacy Crazyflie firmware coordinate system
-        euler_desired[1] = -euler_desired[1]
         return np.concatenate([[thrust_desired], euler_desired])
 
     def step_callback(
@@ -154,3 +163,4 @@ class ThrustController(BaseController):
     def episode_callback(self):
         """Reset the integral error."""
         self.i_error[:] = 0
+        self._tick = 0
