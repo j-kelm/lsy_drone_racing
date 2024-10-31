@@ -138,7 +138,7 @@ class DeltaModel:
         f_dot = cs.vertcat(df1, df2, df3, df4) / self.dt
         X_dot = cs.vertcat(pos_dot, pos_ddot, ang_dot, rate_dot, f_dot)
 
-        Y = cs.vertcat(x, y, z, x_dot, y_dot, z_dot, pos_ddot, phi, theta, psi, ang_dot, p_body, q_body, r_body, f1, f2, f3, f4)
+        Y = cs.vertcat(x, y, z, x_dot, y_dot, z_dot, pos_ddot, phi, theta, psi, p_body, q_body, r_body, ang_dot, f1, f2, f3, f4)
         # Set the equilibrium values for linearizations.
 
         self.X_EQ = np.zeros(nx)

@@ -45,10 +45,10 @@ class MPCControl:
 
         ellipsoid_constraints = list()
         for obstacle_pos in self.initial_obs['obstacles_pos']:
-            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.14) # r = 0.14
+            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.16) # r = 0.14
 
         for gate_pos, gate_rpy in zip(self.initial_obs['gates_pos'], self.initial_obs['gates_rpy']):
-            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.12) # r = 0.12
+            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.13) # r = 0.12
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 

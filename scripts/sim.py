@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def simulate(
-    config: str = 'noisefree.toml', # "multi_modality.toml",
+    config: str = 'cluttered_new.toml', # "multi_modality.toml",
     controller: str | None = None,
     n_runs: int = 1,
     gui: bool = True,

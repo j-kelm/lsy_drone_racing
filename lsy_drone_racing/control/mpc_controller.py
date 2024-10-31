@@ -79,7 +79,7 @@ class Controller(BaseController):
 
         self.planner = MinsnapPlanner(initial_info=self.initial_info,
                                       initial_obs=self.initial_obs,
-                                      speed=1.0,
+                                      speed=1.5,
                                       )
         self.async_ctrl = AsyncMPC(initial_info=initial_info,initial_obs=initial_obs, mpc_config=mpc_config, daemon=True)
         # self.async_ctrl.start()
@@ -144,17 +144,16 @@ class Controller(BaseController):
         out = self.async_ctrl.compute_control(new_obs, info)
 
         self.last_obs = new_obs
-        self.last_input = out['inputs'][0]
+        # self.last_input = out['inputs'][0]
 
         # sanity check
-        obs, info = self.predictor.predict(out['states'][0, :12], info=info, inputs=self.last_input)
+        # obs, info = self.predictor.predict(out['states'][0, :12], info=info, inputs=self.last_input)
 
 
         # self.async_ctrl.put_obs(obs, info, block=False)
         # action = self.async_ctrl.get_action(block=True)  # , timeout=30 * self.CTRL_TIMESTEP)
 
         return out['actions'][0]
-
 
     def episode_reset(self):
         self.action_history = []
