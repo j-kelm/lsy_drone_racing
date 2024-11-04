@@ -99,16 +99,15 @@ class Sim:
         min_thrust, max_thrust = self.drone.params.min_thrust, self.drone.params.max_thrust
         self.action_space = spaces.Box(low=min_thrust, high=max_thrust, shape=(4,))
         # pos in meters, rpy in radians, vel in m/s ang_vel in rad/s
-        rpy_max = np.array([160 / 180 * np.pi, 160 / 180 * np.pi, np.pi], np.float32)  # Yaw unbounded
-        max_flt = np.full(3, np.finfo(np.float32).max, np.float32)
+        rpy_max = np.array([85 / 180 * np.pi, 85 / 180 * np.pi, np.pi], np.float32)  # Yaw unbounded
         pos_low, pos_high = np.array([-3, -3, 0]), np.array([3, 3, 2.5])
         # State space uses 64-bit floats for better compatibility with pycffirmware.
         self.state_space = spaces.Dict(
             {
                 "pos": spaces.Box(low=pos_low, high=pos_high, dtype=np.float64),
-                "rpy": spaces.Box(low=-max_flt, high=max_flt, dtype=np.float64),
-                "vel": spaces.Box(low=-max_flt, high=max_flt, dtype=np.float64),
-                "ang_vel": spaces.Box(low=-max_flt, high=max_flt, dtype=np.float64),
+                "rpy": spaces.Box(low=-rpy_max, high=rpy_max, dtype=np.float64),
+                "vel": spaces.Box(low=-np.inf, high=np.inf, shape=(3,), dtype=np.float64),
+                "ang_vel": spaces.Box(low=-np.inf, high=np.inf, shape=(3,), dtype=np.float64),
             }
         )
         self.disturbances = self._setup_disturbances(disturbances)
@@ -144,7 +143,7 @@ class Sim:
                 self.obstacles[i].update({"nominal." + k: v for k, v in obstacle.items()})
         self.n_obstacles = len(self.obstacles)
 
-        self.reset()  # TODO: Avoid double reset.
+        self._setup_pybullet()
 
     def step(self, desired_thrust: NDArray[np.floating]):
         """Advance the environment by one control step.
@@ -169,7 +168,8 @@ class Sim:
         """Reset the simulation to its original state."""
         for mode in self.disturbances.keys():
             self.disturbances[mode].reset()
-        self._reset_pybullet()
+        self._randomize_gates()
+        self._randomize_obstacles()
         self._randomize_drone()
         self._sync_pyb_to_sim()
         self.drone.reset()
@@ -221,13 +221,55 @@ class Sim:
             flags=p.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
             physicsClientId=self.pyb_client,
         )
-        return np.reshape(rgb, (h, w, 4))  # TODO: Why reshape here?
+        return np.reshape(rgb, (h, w, 4))
 
     def close(self):
         """Stop logging and disconnect from the PyBullet simulation."""
         if self.pyb_client >= 0:
             p.disconnect(physicsClientId=self.pyb_client)
         self.pyb_client = -1
+
+    def _setup_pybullet(self):
+        """Setup the PyBullet simulation environment."""
+        # Set up the simulation parameters.
+        p.resetSimulation(physicsClientId=self.pyb_client)
+        p.setGravity(0, 0, -GRAVITY, physicsClientId=self.pyb_client)
+        p.setRealTimeSimulation(0, physicsClientId=self.pyb_client)
+        p.setTimeStep(1 / self.settings.sim_freq, physicsClientId=self.pyb_client)
+        p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=self.pyb_client)
+        # Load the ground plane, drone, gates and obstacles models.
+        plane_id = p.loadURDF("plane.urdf", [0, 0, 0], physicsClientId=self.pyb_client)
+        self.pyb_objects["plane"] = plane_id
+        self.drone.id = p.loadURDF(
+            str(self.URDF_DIR / "cf2x.urdf"),
+            self.drone.init_pos,
+            p.getQuaternionFromEuler(self.drone.init_rpy),
+            flags=p.URDF_USE_INERTIA_FROM_FILE,  # Use URDF inertia tensor.
+            physicsClientId=self.pyb_client,
+        )
+        # Remove default damping.
+        p.changeDynamics(self.drone.id, -1, linearDamping=0, angularDamping=0)
+
+        # Load the gates.
+        for i, gate in self.gates.items():
+            self.gates[i]["pos"] = np.array(gate["nominal.pos"])
+            self.gates[i]["id"] = self._load_urdf_into_sim(
+                self.URDF_DIR / "gate.urdf",
+                self.gates[i]["pos"],
+                self.gates[i]["rpy"],
+                marker=str(i),
+            )
+            self.pyb_objects[f"gate_{i}"] = self.gates[i]["id"]
+
+        # Load the obstacles.
+        for i, obstacle in self.obstacles.items():
+            self.obstacles[i]["pos"] = np.array(obstacle["nominal.pos"])
+            self.obstacles[i]["id"] = self._load_urdf_into_sim(
+                self.URDF_DIR / "obstacle.urdf", self.obstacles[i]["pos"], marker=str(i)
+            )
+            self.pyb_objects[f"obstacle_{i}"] = self.obstacles[i]["id"]
+
+        self._sync_pyb_to_sim()
 
     def _setup_disturbances(self, disturbances: dict | None = None) -> dict[str, NoiseList]:
         """Creates attributes and action spaces for the disturbances.
@@ -248,50 +290,25 @@ class Sim:
             dist[mode] = NoiseList.from_specs([spec])
         return dist
 
-    def _reset_pybullet(self):
-        """Reset PyBullet's simulation environment."""
-        p.resetSimulation(physicsClientId=self.pyb_client)
-        p.setGravity(0, 0, -GRAVITY, physicsClientId=self.pyb_client)
-        p.setRealTimeSimulation(0, physicsClientId=self.pyb_client)
-        p.setTimeStep(1 / self.settings.sim_freq, physicsClientId=self.pyb_client)
-        p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=self.pyb_client)
-        # Load ground plane, drone and obstacles models.
-        i = p.loadURDF("plane.urdf", [0, 0, 0], physicsClientId=self.pyb_client)
-        self.pyb_objects["plane"] = i
-
-        self.drone.id = p.loadURDF(
-            str(self.URDF_DIR / "cf2x.urdf"),
-            self.drone.init_pos,
-            p.getQuaternionFromEuler(self.drone.init_rpy),
-            flags=p.URDF_USE_INERTIA_FROM_FILE,  # Use URDF inertia tensor.
-            physicsClientId=self.pyb_client,
-        )
-        # Remove default damping.
-        p.changeDynamics(self.drone.id, -1, linearDamping=0, angularDamping=0)
-        # Load obstacles into the simulation and perturb their poses if configured.
-        self._reset_obstacles()
-        self._reset_gates()
-        self._sync_pyb_to_sim()
-
-    def _reset_obstacles(self):
-        """Reset the obstacles in the simulation."""
-        for i, obstacle in self.obstacles.items():
+    def _randomize_obstacles(self):
+        """Randomize the obstacles' position."""
+        for obstacle in self.obstacles.values():
             pos_offset = np.zeros(3)
             if obstacle_pos := self.randomization.get("obstacle_pos"):
                 distrib = getattr(self.np_random, obstacle_pos.get("type"))
                 kwargs = {k: v for k, v in obstacle_pos.items() if k != "type"}
                 pos_offset = distrib(**kwargs)
-            self.obstacles[i]["pos"] = np.array(obstacle["nominal.pos"]) + pos_offset
-            self.obstacles[i]["id"] = self._load_urdf_into_sim(
-                self.URDF_DIR / "obstacle.urdf",
-                self.obstacles[i]["pos"] + pos_offset,
-                marker=str(i),
+            obstacle["pos"] = np.array(obstacle["nominal.pos"]) + pos_offset
+            p.resetBasePositionAndOrientation(
+                obstacle["id"],
+                obstacle["pos"],
+                p.getQuaternionFromEuler([0, 0, 0]),
+                physicsClientId=self.pyb_client,
             )
-            self.pyb_objects[f"obstacle_{i}"] = self.obstacles[i]["id"]
 
-    def _reset_gates(self):
-        """Reset the gates in the simulation."""
-        for i, gate in self.gates.items():
+    def _randomize_gates(self):
+        """Randomize the gates' position and orientation."""
+        for gate in self.gates.values():
             pos_offset = np.zeros_like(gate["nominal.pos"])
             if gate_pos := self.randomization.get("gate_pos"):
                 distrib = getattr(self.np_random, gate_pos.get("type"))
@@ -302,10 +319,12 @@ class Sim:
                 rpy_offset = distrib(**{k: v for k, v in gate_rpy.items() if k != "type"})
             gate["pos"] = np.array(gate["nominal.pos"]) + pos_offset
             gate["rpy"] = map2pi(np.array(gate["nominal.rpy"]) + rpy_offset)  # Ensure [-pi, pi]
-            gate["id"] = self._load_urdf_into_sim(
-                self.URDF_DIR / "gate.urdf", gate["pos"], gate["rpy"], marker=str(i)
+            p.resetBasePositionAndOrientation(
+                gate["id"],
+                gate["pos"],
+                p.getQuaternionFromEuler(gate["rpy"]),
+                physicsClientId=self.pyb_client,
             )
-            self.pyb_objects[f"gate_{i}"] = gate["id"]
 
     def _load_urdf_into_sim(
         self,
@@ -443,11 +462,11 @@ class SimSettings:
             farVal=1000.0,
         )
         self.camera_view = p.computeViewMatrixFromYawPitchRoll(
-            distance=3.5,
-            yaw=-35,
+            distance=3,
+            yaw=-30,
             pitch=-30,
             roll=0,
-            cameraTargetPosition=[1, 0, 0],
+            cameraTargetPosition=[0, 0, 0],
             upAxisIndex=2,
             physicsClientId=0,
         )
