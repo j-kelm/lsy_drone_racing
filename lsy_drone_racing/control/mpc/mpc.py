@@ -150,12 +150,12 @@ class MPC:
         # Constraints
         for i in range(self.T):
             # Dynamics constraints.
-            # next_state = self.dynamics_func(x0=x_var[:, i], p=u_var[:, i])['xf']
-            # opti.subject_to(x_var[:, i + 1] == next_state)
+            next_state = self.dynamics_func(x0=x_var[:, i], p=u_var[:, i])['xf']
+            opti.subject_to(x_var[:, i + 1] == next_state)
 
-            next_state = self.dynamics_func(x0=x_var[:, i], p=np.zeros(nu))['xf']
-            opti.subject_to(x_var[:-4, i + 1] == next_state[:-4])
-            opti.subject_to(x_var[-4:, i + 1] == x_var[-4:, i] + u_var[:, i])
+            #next_state = self.dynamics_func(x0=x_var[:, i], p=np.zeros(nu))['xf']
+            #opti.subject_to(x_var[:-4, i + 1] == next_state[:-4])
+            #opti.subject_to(x_var[-4:, i + 1] == x_var[-4:, i] + u_var[:, i])
 
 
             # hard constraints

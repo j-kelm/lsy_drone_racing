@@ -74,38 +74,38 @@ class Controller(BaseController):
         self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
         self.initial_obs = initial_obs
         self.initial_info = initial_info
+        self.initial_info['ctrl_freq'] = self.CTRL_FREQ
+
+        self.initial_info['nominal_physical_parameters'] = {
+            'quadrotor_mass': 0.03454,
+            'L': 0.046, # 0.0397,
+            'g': 9.81,
+            'quadrotor_ixx_inertia': 1.4e-05,
+            'quadrotor_iyy_inertia': 1.4e-05,
+            'quadrotor_izz_inertia': 2.17e-05,
+            'quadrotor_kf': 3.16e-10,
+            'quadrotor_km': 7.94e-12,
+        }
 
         self.episode_reset()
 
         self.planner = MinsnapPlanner(initial_info=self.initial_info,
                                       initial_obs=self.initial_obs,
-                                      speed=1.5,
+                                      speed=1.25,
                                       )
         self.async_ctrl = AsyncMPC(initial_info=initial_info,initial_obs=initial_obs, mpc_config=mpc_config, daemon=True)
-        # self.async_ctrl.start()
+        self.async_ctrl.start()
 
         if 'step' not in self.initial_info:
             self.initial_info['step'] = 0
         self.initial_info['reference'] = self.planner.ref
         self.initial_info['gate_prox'] = self.planner.gate_prox
 
-
         # start precomputing first actions
-        # self.async_ctrl.put_obs(obs=self.initial_obs, info=self.initial_info, block=False)
-        # self.last_action = self.async_ctrl.get_action(block=True)
+        self.async_ctrl.put_obs(obs=self.initial_obs, info=self.initial_info, block=False)
 
-
-        # self.line = draw_trajectory(initial_info, self.planner.waypoint_pos,
-        #                 self.planner.ref[0], self.planner.ref[1], self.planner.ref[2],
-        #                 num_plot_points=200)
-
-        pos = initial_obs['pos']
-        rpy = initial_obs['rpy']
-        vel = initial_obs['vel']
-        body_rates = initial_obs['ang_vel']
-        self.last_obs = np.concatenate([pos, vel, rpy, body_rates])
-        self.last_input = None
-        self.predictor = SymbolicPredictor()
+        # wait for first obs to be processed
+        self.async_ctrl.wait_tasks()
 
 
     def compute_control(
@@ -126,39 +126,45 @@ class Controller(BaseController):
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
 
-        pos = obs['pos']
-        rpy = obs['rpy']
-        vel = obs['vel']
-        body_rates = obs['ang_vel']  # Are these actually legit values?!?
-        new_obs = np.concatenate([pos, vel, rpy, body_rates])
-
         info['step'] = self._tick
         info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox
 
-        obs, info = self.predictor.predict(self.last_obs, info=info, inputs=self.last_input)
-
-        err = obs - new_obs
-        print(err)
-
-        out = self.async_ctrl.compute_control(new_obs, info)
-
-        self.last_obs = new_obs
+        # pos = obs['pos']
+        # rpy = obs['rpy']
+        # vel = obs['vel']
+        # body_rates = obs['ang_vel']
+        # new_obs = np.concatenate([pos, vel, rpy, body_rates])
+        # new_obs_zero = np.concatenate([pos, vel, rpy, np.zeros(3)])
+        # self.last_obs.append(new_obs)
+        # self.last_obs_zero.append(new_obs_zero)
+        #
+        # obs, info = self.predictor.predict(self.last_obs[-2], info=info, inputs=self.last_input)
+        # obs_zero, info = self.predictor.predict(self.last_obs_zero[-2], info=info, inputs=self.last_input)
+        # err = obs - new_obs
+        # err_zero = obs_zero - new_obs
+        #
+        # obs = obs_zero
+        #
+        # obs[-3:] = 0
+        #
+        # out = self.async_ctrl.compute_control(obs, info)
+        #
         # self.last_input = out['inputs'][0]
+        #
+        # return out['actions'][0]
 
-        # sanity check
-        # obs, info = self.predictor.predict(out['states'][0, :12], info=info, inputs=self.last_input)
+        self.async_ctrl.put_obs(obs, info, block=False)
+        action, step_idx = self.async_ctrl.get_action(block=True, timeout=self.CTRL_TIMESTEP)
 
+        assert self._tick == step_idx, f'Action provided for step {step_idx}, should be {self._tick}'
 
-        # self.async_ctrl.put_obs(obs, info, block=False)
-        # action = self.async_ctrl.get_action(block=True)  # , timeout=30 * self.CTRL_TIMESTEP)
-
-        return out['actions'][0]
+        return action
 
     def episode_reset(self):
         self.action_history = []
         self.state_history = []
-        self._tick = 1
+        self._tick = 0
 
     def step_callback(
         self,

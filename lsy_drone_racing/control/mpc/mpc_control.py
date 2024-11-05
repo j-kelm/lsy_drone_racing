@@ -33,7 +33,7 @@ class MPCControl:
         # self.multi_starts = self.config['multi_starts']
 
         # Get model and constraints
-        self.model = Model(info=None)
+        self.model = Model(info=self.initial_info)
 
         self.model.state_constraints += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
         self.model.state_constraints_soft += [lambda x: -84 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 84 / 180 * np.pi] # max roll and pitch
@@ -57,7 +57,7 @@ class MPCControl:
                         q_mpc=self.config['q'], r_mpc=self.config['r'],
                         soft_penalty=1e3,
                         err_on_fail=False,
-                        max_iter=500,
+                        max_iter=100,
         )
 
         self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[

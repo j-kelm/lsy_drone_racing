@@ -5,54 +5,22 @@ import casadi as cs
 from lsy_drone_racing.sim.symbolic import SymbolicModel
 from lsy_drone_racing.sim.symbolic import csRotXYZ
 
-# thrust2weight=2.25
-DRONE_PROP = {
-    'L': 0.0397,
-    'g': 9.8,
-}
-
-INFO = {
-    'nominal_physical_parameters': {
-        'quadrotor_mass': 0.03454,
-        'quadrotor_ixx_inertia': 1.4e-05,
-        'quadrotor_iyy_inertia': 1.4e-05,
-        'quadrotor_izz_inertia': 2.17e-05,
-    },
-    'x_reference': np.array([ 0. ,  0. , -2. ,  0. ,  0.5,  0. ,  0. ,  0. ,  0. ,  0. ,  0. , 0. ]),
-    'u_reference': np.array([0.084623, 0.084623, 0.084623, 0.084623]),
-    'ctrl_timestep': 0.03333333333333333,
-    'ctrl_freq': 30,
-    'episode_len_sec': 33,
-    'quadrotor_kf': 3.16e-10,
-    'quadrotor_km': 7.94e-12,
-    'gate_dimensions': {
-        'tall': {'shape': 'square', 'height': 1.0, 'edge': 0.45},
-        'low': {'shape': 'square', 'height': 0.525, 'edge': 0.45}
-    },
-    'obstacle_dimensions': {'shape': 'cylinder', 'height': 1.05, 'radius': 0.05},
-    'nominal_gates_pos_and_type': [
-        [-0.5, -0.5, 0, 0, 0, 3.14, 0]
-    ],
-    'nominal_obstacles_pos': [],
-}
-
 
 class DeltaModel:
     def __init__(self, info):
-        self.info = info if info is not None else INFO
+        self.info = info
 
-        self.dt = self.info['ctrl_timestep']
-
+        self.dt = 1 / self.info['ctrl_freq']
 
         physical_params = self.info['nominal_physical_parameters']
         self.m = physical_params['quadrotor_mass']
         self.Ixx = physical_params['quadrotor_ixx_inertia']
         self.Iyy = physical_params['quadrotor_iyy_inertia']
         self.Izz = physical_params['quadrotor_izz_inertia']
-
-        self.KF = self.info['quadrotor_kf']
-        self.KM = self.info['quadrotor_km']
-
+        self.KF = physical_params['quadrotor_kf']
+        self.KM = physical_params['quadrotor_km']
+        self.g = physical_params['g']
+        self.L = physical_params['L']
 
         self.setup_symbolics()
 
@@ -76,7 +44,7 @@ class DeltaModel:
         nx, nu = 16, 4
 
         # set drone properties
-        g, length = DRONE_PROP['g'], DRONE_PROP['L']
+        g, length = self.g, self.L
 
         J = cs.blockcat([[self.Ixx, 0.0, 0.0],
                          [0.0, self.Iyy, 0.0],
@@ -182,20 +150,19 @@ class DeltaModel:
 
 class PredictionModel:
     def __init__(self, info):
-        self.info = info if info is not None else INFO
+        self.info = info
 
-        self.dt = self.info['ctrl_timestep']
-
+        self.dt = 1 / self.info['ctrl_freq']
 
         physical_params = self.info['nominal_physical_parameters']
         self.m = physical_params['quadrotor_mass']
         self.Ixx = physical_params['quadrotor_ixx_inertia']
         self.Iyy = physical_params['quadrotor_iyy_inertia']
         self.Izz = physical_params['quadrotor_izz_inertia']
-
-        self.KF = self.info['quadrotor_kf']
-        self.KM = self.info['quadrotor_km']
-
+        self.KF = physical_params['quadrotor_kf']
+        self.KM = physical_params['quadrotor_km']
+        self.g = physical_params['g']
+        self.L = physical_params['L']
 
         self.setup_symbolics()
 
@@ -217,7 +184,7 @@ class PredictionModel:
         nx, nu = 12, 4
 
         # set drone properties
-        g, length = DRONE_PROP['g'], DRONE_PROP['L']
+        g, length = self.g, self.L
 
         J = cs.blockcat([[self.Ixx, 0.0, 0.0],
                          [0.0, self.Iyy, 0.0],
