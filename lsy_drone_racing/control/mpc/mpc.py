@@ -24,7 +24,8 @@ class MPC:
                  use_gpu: bool = False,
                  seed: int = 0,
                  solver: str = 'ipopt',
-                 max_iter: int = 150,
+                 max_iter: int = 1000,
+                 max_wall_time: float = 1.0e+20,
                  horizon_skip: int = 1,
                  **kwargs
                  ):
@@ -73,6 +74,7 @@ class MPC:
 
         self.solver = solver
         self.max_iter = max_iter
+        self.max_wall_time = max_wall_time
 
         self.set_dynamics_func()
         self.setup_optimizer(self.solver)
@@ -188,7 +190,13 @@ class MPC:
         opti.minimize(cost)
 
         # Create solver
-        opts = {'expand': True, 'error_on_fail': False, 'ipopt.max_iter': self.max_iter, 'ipopt.print_level':0, 'print_time':0, 'record_time': 1}
+        opts = {'expand': True,
+                'error_on_fail': False,
+                'ipopt.max_iter': self.max_iter,
+                'ipopt.max_wall_time': self.max_wall_time,
+                'ipopt.print_level':0,
+                'print_time':0,
+                'record_time': 1}
         opti.solver(solver, opts)
 
         self.opti_dict = {

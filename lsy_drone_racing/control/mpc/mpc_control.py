@@ -45,7 +45,7 @@ class MPCControl:
 
         ellipsoid_constraints = list()
         for obstacle_pos in self.initial_obs['obstacles_pos']:
-            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.16) # r = 0.14
+            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.17) # r = 0.14
 
         for gate_pos, gate_rpy in zip(self.initial_obs['gates_pos'], self.initial_obs['gates_rpy']):
             ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.13) # r = 0.12
@@ -55,9 +55,10 @@ class MPCControl:
         self.ctrl = MPC(model=self.model,
                         horizon=int(self.config['horizon_sec'] * self.CTRL_FREQ),
                         q_mpc=self.config['q'], r_mpc=self.config['r'],
-                        soft_penalty=1e3,
+                        soft_penalty=5e3,
                         err_on_fail=False,
-                        max_iter=100,
+                        max_iter=500,
+                        max_wall_time=self.CTRL_TIMESTEP * self.config['ratio'] * 0.9,
         )
 
         self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[
@@ -96,21 +97,26 @@ class MPCControl:
 
         q_pos = np.zeros_like(self.config['q'])
         q_pos[0:3] = self.config['q'][0:3]
-        info['q'] = np.array(self.config['q'])[:, np.newaxis] + 3.0 * np.outer(q_pos, gate_prox)
-        try:
-            inputs, states, outputs = self.ctrl.select_action(obs=state,
-                                                                  ref=remaining_ref,
-                                                                  info=info,
-                                                                  err_on_fail=True)
+        info['q'] = np.array(self.config['q'])[:, np.newaxis] + 4.0 * np.outer(self.config['q'], gate_prox) # 4.0 * np.outer(q_pos, gate_prox)
+        # try:
+        #     inputs, states, outputs = self.ctrl.select_action(obs=state,
+        #                                                           ref=remaining_ref,
+        #                                                           info=info,
+        #                                                           err_on_fail=True)
+        #
+        # except RuntimeError:  # use reference warm start on fail
+        #     print('[WARN] First attempt failed, trying again with reference warm-start.')
+        #     info['x_guess'] = None
+        #     inputs, states, outputs = self.ctrl.select_action(obs=state,
+        #                                                           ref=remaining_ref,
+        #                                                           info=info,
+        #                                                           err_on_fail=False,
+        #                                                           force_warm_start=True)
 
-        except RuntimeError:  # use reference warm start on fail
-            print('[WARN] First attempt failed, trying again with reference warm-start.')
-            info['x_guess'] = None
-            inputs, states, outputs = self.ctrl.select_action(obs=state,
-                                                                  ref=remaining_ref,
-                                                                  info=info,
-                                                                  err_on_fail=False,
-                                                                  force_warm_start=True)
+        inputs, states, outputs = self.ctrl.select_action(obs=state,
+                                                          ref=remaining_ref,
+                                                          info=info,
+                                                          err_on_fail=False)
 
         self.forces = states[12:16, 1]
 

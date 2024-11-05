@@ -46,7 +46,7 @@ class AsyncControl(mp.Process):
                 pos = obs['pos']
                 rpy = obs['rpy']
                 vel = obs['vel']
-                body_rates = np.zeros(3) # obs['ang_vel']
+                body_rates = obs['ang_vel']
                 obs = np.concatenate([pos, vel, rpy, body_rates])
 
                 obs_predicted, info_predicted = self._predictor.predict(obs=obs, info=info, inputs=self.last_inputs[:self._ratio])

@@ -91,7 +91,7 @@ class Controller(BaseController):
 
         self.planner = MinsnapPlanner(initial_info=self.initial_info,
                                       initial_obs=self.initial_obs,
-                                      speed=1.25,
+                                      speed=1.5,
                                       )
         self.async_ctrl = AsyncMPC(initial_info=initial_info,initial_obs=initial_obs, mpc_config=mpc_config, daemon=True)
         self.async_ctrl.start()
@@ -106,6 +106,8 @@ class Controller(BaseController):
 
         # wait for first obs to be processed
         self.async_ctrl.wait_tasks()
+
+        self.last_rpy = np.zeros(3)
 
 
     def compute_control(
@@ -129,6 +131,8 @@ class Controller(BaseController):
         info['step'] = self._tick
         info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox
+
+        obs['ang_vel'] = np.zeros(3)
 
         # pos = obs['pos']
         # rpy = obs['rpy']
