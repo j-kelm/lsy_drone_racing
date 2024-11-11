@@ -39,7 +39,7 @@ class MPCControl:
         self.model.state_constraints_soft += [lambda x: -80 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 80 / 180 * np.pi] # max roll and pitch
         self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
 
-        self.model.input_constraints_soft += [lambda u: -0.02 - u, lambda u: u - 0.02]
+        self.model.input_constraints_soft += [lambda u: -10 * 0.145 / self.CTRL_FREQ - u, lambda u: u - 10 * 0.145 / self.CTRL_FREQ]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 

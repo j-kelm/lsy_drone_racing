@@ -89,7 +89,7 @@ class Controller(BaseController):
 
         self.planner = MinsnapPlanner(initial_info=self.initial_info,
                                       initial_obs=self.initial_obs,
-                                      speed=1.0,
+                                      speed=1.75,
                                       )
         self.async_ctrl = AsyncMPC(initial_info=initial_info,initial_obs=initial_obs, mpc_config=mpc_config, daemon=True)
 
@@ -100,8 +100,7 @@ class Controller(BaseController):
 
         # this sets the internal MPC state for a good warm start
         self.async_ctrl.compute_control(self.initial_obs, self.initial_info)
-        self.async_ctrl.ctrl.ctrl.setup_optimizer(solver='ipopt', max_wall_time=self.CTRL_TIMESTEP * mpc_config.ratio * 0.8)
-
+        self.async_ctrl.ctrl.ctrl.setup_optimizer(solver='ipopt', max_wall_time=self.CTRL_TIMESTEP * mpc_config.ratio * 0.5)
 
         self.async_ctrl.start()
 
@@ -134,10 +133,10 @@ class Controller(BaseController):
         info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox
 
-        # obs['ang_vel'] *= 0.1 # np.zeros(3)
+        obs['ang_vel'] = np.zeros(3)
 
         self.async_ctrl.put_obs(obs, info, block=False)
-        action, step_idx = self.async_ctrl.get_action(block=False) #, timeout=self.CTRL_TIMESTEP)
+        action, step_idx = self.async_ctrl.get_action(block=True, timeout=0.2 * self.CTRL_TIMESTEP)
 
         # assert self._tick == step_idx, f'Action provided for step {step_idx}, should be {self._tick}'
 
