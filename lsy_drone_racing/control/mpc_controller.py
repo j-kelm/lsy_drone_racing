@@ -159,7 +159,7 @@ class Controller(BaseController):
         # return out['actions'][0]
 
         self.async_ctrl.put_obs(obs, info, block=False)
-        action, step_idx = self.async_ctrl.get_action(block=True, timeout=self.CTRL_TIMESTEP)
+        action, step_idx = self.async_ctrl.get_action(block=False) # True, timeout=self.CTRL_TIMESTEP)
 
         assert self._tick == step_idx, f'Action provided for step {step_idx}, should be {self._tick}'
 
