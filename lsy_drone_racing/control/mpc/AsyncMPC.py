@@ -6,12 +6,18 @@ from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 
 class AsyncMPC(AsyncControl):
     def __init__(self, initial_info, initial_obs, mpc_config, *args, **kwargs):
-        super().__init__(initial_info, ratio=mpc_config['ratio'], *args, **kwargs)
+        super().__init__(ratio=mpc_config['ratio'], *args, **kwargs)
 
         # set up controller
         self.ctrl = MPCControl(initial_info, initial_obs, mpc_config)
 
     def compute_control(self, obs, info):
+        pos = obs['pos']
+        rpy = obs['rpy']
+        vel = obs['vel']
+        body_rates = obs['ang_vel']
+        obs = np.concatenate([pos, vel, rpy, body_rates])
+
         inputs, states, outputs = self.ctrl.compute_control(obs, info['reference'], info)
 
         out = dict()

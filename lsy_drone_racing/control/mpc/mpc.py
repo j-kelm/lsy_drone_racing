@@ -16,7 +16,6 @@ class MPC:
                  r_mpc: list = [0.01],
                  warmstart: bool = True,
                  soft_penalty: float = 1e3,
-                 terminate_run_on_done: bool = True,
                  constraint_tol: float = 1e-6,
                  # runner args
                  # shared/base args
@@ -39,7 +38,6 @@ class MPC:
             r_mpc (list): diagonals of input/action cost weight.
             warmstart (bool): if to initialize from previous iteration.
             soft_constraints (bool): Formulate the constraints as soft constraints.
-            terminate_run_on_done (bool): Terminate the run when the environment returns done or not.
             constraint_tol (float): Tolerance to add the constraint as sometimes solvers are not exact.
             output_dir (str): output directory to write logs and results.
             additional_constraints (list): List of additional constraints
@@ -69,7 +67,6 @@ class MPC:
         self.constraint_tol = constraint_tol
         self.soft_penalty = soft_penalty
         self.warmstart = warmstart
-        self.terminate_run_on_done = terminate_run_on_done
         self.horizon_skip = horizon_skip
 
         self.solver = solver
@@ -106,7 +103,7 @@ class MPC:
                                          self.model.nu,
                                          self.dt)
 
-    def setup_optimizer(self, solver='qrsqp'):
+    def setup_optimizer(self, solver='qrsqp', max_iter=None, max_wall_time=None):
         '''Sets up nonlinear optimization problem.'''
         print(colored(f'Setting up optimizer with {solver}', 'green'))
         nx, nu = self.model.nx, self.model.nu
@@ -192,11 +189,14 @@ class MPC:
         # Create solver
         opts = {'expand': True,
                 'error_on_fail': False,
-                'ipopt.max_iter': self.max_iter,
-                'ipopt.max_wall_time': self.max_wall_time,
                 'ipopt.print_level':0,
                 'print_time':0,
                 'record_time': 1}
+        if max_iter is not None:
+            opts['ipopt.max_iter'] = max_iter
+        if max_wall_time is not None:
+            opts['ipopt.max_wall_time'] = max_wall_time
+
         opti.solver(solver, opts)
 
         self.opti_dict = {
@@ -210,11 +210,11 @@ class MPC:
             'r': r,
         }
 
+
     def select_action(self,
                       obs,
                       ref,
                       info: dict=None,
-                      err_on_fail: bool=False,
                       force_warm_start: bool=False,
                       ):
         '''Solves nonlinear mpc problem to get next action.
@@ -294,9 +294,7 @@ class MPC:
             sol = opti.solve()
             x_val, u_val = sol.value(x_var), sol.value(u_var)
         except RuntimeError as e:
-            print(colored(f'Infeasible MPC Problem', 'red'))
-            if err_on_fail:
-                raise e
+            print(colored(f'Infeasible MPC Problem: {str(e)}', 'red'))
 
             if self.solver == 'ipopt':
                 x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)

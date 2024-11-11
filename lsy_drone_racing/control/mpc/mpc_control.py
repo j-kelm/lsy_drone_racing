@@ -36,7 +36,7 @@ class MPCControl:
         self.model = Model(info=self.initial_info)
 
         self.model.state_constraints += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
-        self.model.state_constraints_soft += [lambda x: -84 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 84 / 180 * np.pi] # max roll and pitch
+        self.model.state_constraints_soft += [lambda x: -80 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 80 / 180 * np.pi] # max roll and pitch
         self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
 
         self.model.input_constraints_soft += [lambda u: -0.02 - u, lambda u: u - 0.02]
@@ -57,8 +57,7 @@ class MPCControl:
                         q_mpc=self.config['q'], r_mpc=self.config['r'],
                         soft_penalty=5e3,
                         err_on_fail=False,
-                        max_iter=5,
-                        max_wall_time=self.CTRL_TIMESTEP * self.config['ratio'] * 0.95,
+                        horizon_skip=config['ratio'],
         )
 
         self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[
@@ -68,7 +67,7 @@ class MPCControl:
 
 
     def compute_control(
-        self, state, ref, info: dict | None = None
+        self, state, ref, info: dict,
     ) -> npt.NDarray[np.floating]:
         """Compute the next desired position and orientation of the drone.
 
@@ -80,7 +79,6 @@ class MPCControl:
             state: The current observation of the environment. See the environment's observation space
                 for details.
             ref: fullstate reference
-            step: current step on reference
             info: Optional additional information as a dictionary.
 
         Returns:
@@ -97,7 +95,7 @@ class MPCControl:
 
         q_pos = np.zeros_like(self.config['q'])
         q_pos[0:3] = self.config['q'][0:3]
-        info['q'] = np.array(self.config['q'])[:, np.newaxis] + 4.0 * np.outer(self.config['q'], gate_prox) # 4.0 * np.outer(q_pos, gate_prox)
+        info['q'] = np.array(self.config['q'])[:, np.newaxis] + 5.0 * np.outer(self.config['q'], gate_prox) # 4.0 * np.outer(q_pos, gate_prox)
         # try:
         #     inputs, states, outputs = self.ctrl.select_action(obs=state,
         #                                                           ref=remaining_ref,
@@ -115,8 +113,8 @@ class MPCControl:
 
         inputs, states, outputs = self.ctrl.select_action(obs=state,
                                                           ref=remaining_ref,
-                                                          info=info,
-                                                          err_on_fail=False)
+                                                          info=info)
+
 
         self.forces = states[12:16, 1]
 

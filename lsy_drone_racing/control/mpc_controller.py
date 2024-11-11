@@ -39,8 +39,6 @@ import yaml
 from numpy._typing import NDArray
 
 from lsy_drone_racing.control import BaseController
-from lsy_drone_racing.control.Predictor import SymbolicPredictor
-from lsy_drone_racing.utils.utils import draw_trajectory, draw_segment_of_traj
 
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
 
@@ -91,23 +89,27 @@ class Controller(BaseController):
 
         self.planner = MinsnapPlanner(initial_info=self.initial_info,
                                       initial_obs=self.initial_obs,
-                                      speed=1.75,
+                                      speed=1.0,
                                       )
         self.async_ctrl = AsyncMPC(initial_info=initial_info,initial_obs=initial_obs, mpc_config=mpc_config, daemon=True)
-        self.async_ctrl.start()
 
         if 'step' not in self.initial_info:
             self.initial_info['step'] = 0
         self.initial_info['reference'] = self.planner.ref
         self.initial_info['gate_prox'] = self.planner.gate_prox
 
+        # this sets the internal MPC state for a good warm start
+        self.async_ctrl.compute_control(self.initial_obs, self.initial_info)
+        self.async_ctrl.ctrl.ctrl.setup_optimizer(solver='ipopt', max_wall_time=self.CTRL_TIMESTEP * mpc_config.ratio * 0.8)
+
+
+        self.async_ctrl.start()
+
         # start precomputing first actions
         self.async_ctrl.put_obs(obs=self.initial_obs, info=self.initial_info, block=False)
 
         # wait for first obs to be processed
         self.async_ctrl.wait_tasks()
-
-        self.last_rpy = np.zeros(3)
 
 
     def compute_control(
@@ -132,36 +134,12 @@ class Controller(BaseController):
         info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox
 
-        obs['ang_vel'] = np.zeros(3)
-
-        # pos = obs['pos']
-        # rpy = obs['rpy']
-        # vel = obs['vel']
-        # body_rates = obs['ang_vel']
-        # new_obs = np.concatenate([pos, vel, rpy, body_rates])
-        # new_obs_zero = np.concatenate([pos, vel, rpy, np.zeros(3)])
-        # self.last_obs.append(new_obs)
-        # self.last_obs_zero.append(new_obs_zero)
-        #
-        # obs, info = self.predictor.predict(self.last_obs[-2], info=info, inputs=self.last_input)
-        # obs_zero, info = self.predictor.predict(self.last_obs_zero[-2], info=info, inputs=self.last_input)
-        # err = obs - new_obs
-        # err_zero = obs_zero - new_obs
-        #
-        # obs = obs_zero
-        #
-        # obs[-3:] = 0
-        #
-        # out = self.async_ctrl.compute_control(obs, info)
-        #
-        # self.last_input = out['inputs'][0]
-        #
-        # return out['actions'][0]
+        # obs['ang_vel'] *= 0.1 # np.zeros(3)
 
         self.async_ctrl.put_obs(obs, info, block=False)
-        action, step_idx = self.async_ctrl.get_action(block=True, timeout=self.CTRL_TIMESTEP)
+        action, step_idx = self.async_ctrl.get_action(block=False) #, timeout=self.CTRL_TIMESTEP)
 
-        assert self._tick == step_idx, f'Action provided for step {step_idx}, should be {self._tick}'
+        # assert self._tick == step_idx, f'Action provided for step {step_idx}, should be {self._tick}'
 
         return action
 
