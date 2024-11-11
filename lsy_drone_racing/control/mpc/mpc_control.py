@@ -57,8 +57,8 @@ class MPCControl:
                         q_mpc=self.config['q'], r_mpc=self.config['r'],
                         soft_penalty=5e3,
                         err_on_fail=False,
-                        max_iter=500,
-                        max_wall_time=self.CTRL_TIMESTEP * self.config['ratio'] * 0.9,
+                        max_iter=5,
+                        max_wall_time=self.CTRL_TIMESTEP * self.config['ratio'] * 0.95,
         )
 
         self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[
