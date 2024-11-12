@@ -12,7 +12,7 @@ class AsyncMPC(AsyncControl):
         self.ctrl = MPCControl(initial_info, initial_obs, mpc_config)
 
     def compute_control(self, obs, info):
-        obs = np.concatenate([obs['pos'], obs['rpy'], obs['vel'], obs['ang_vel']])
+        obs = np.concatenate([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
         inputs, states, outputs = self.ctrl.compute_control(obs, info['reference'], info)
 
         target_pos = outputs[:3]
