@@ -5,20 +5,23 @@ import h5py
 import os
 import argparse
 
-import sys
-sys.path.append('examples')
-
 from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 
-def dict_to_group(root, name: str | None, data: dict):
-    grp = root.create_group(name) if name else root
+def dict_to_group(root, name: str, data: dict):
+    grp = root.create_group(name)
     for key in data:
-        grp[key] = data[key]
+        if isinstance(data[key], dict):
+            dict_to_group(grp, key, data[key])
+        else:
+            grp[key] = data[key]
 
 def to_dict(grp):
     temp = dict()
     for key in grp:
-        temp[key] = np.array(grp[key])
+        if isinstance(grp[key], h5py.Dataset):
+            temp[key] = np.array(grp[key])
+        elif isinstance(grp[key], h5py.Group):
+            temp[key] = to_dict(grp[key])
     return temp
 
 if __name__ == "__main__":
@@ -45,27 +48,37 @@ if __name__ == "__main__":
 
         # get random generator and seed
         rng = np.random.default_rng(seed=args.seed)
-        randomizer_range = np.array([0.25, 0.25, 0.25, 0.5, 0.5, 0.5, np.pi/4, np.pi/4, np.pi/4, np.pi/2, np.pi/2, np.pi/2, 0.01, 0.01, 0.01, 0.01]) * 1.25
-        # randomizer_range = np.array([0.05, 0.05, 0.05, 0.01, 0.01, 0.01, 0, 0, 0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01])
-        lower_state_bound = np.array(
-            [-3.0, -3.0, -0.1, -2.5, -2.5, -2.5, -np.pi, -np.pi, -np.inf, -10.0, -10.0, -10.0, 0.03, 0.03, 0.03, 0.03])
-        upper_state_bound = np.array(
-            [3.0, 3.0, 2.5, 2.5, 2.5, 2.5, np.pi, np.pi, np.inf, 10.0, 10.0, 10.0, 0.145, 0.145, 0.145, 0.145])
+        randomizer_range = np.array([
+            0.25, 0.25, 0.25,
+            0.5, 0.5, 0.5,
+            np.pi/4, np.pi/4, np.pi/4,
+            np.pi/2, np.pi/2, np.pi/2,
+            0.01, 0.01, 0.01, 0.01]) * 1.25
+        lower_state_bound = np.array([
+            -3.0, -3.0, -0.1,
+            -2.5, -2.5, -2.5,
+            -np.pi, -np.pi, -np.inf,
+            -10.0, -10.0, -10.0,
+            0.03, 0.03, 0.03, 0.03])
+        upper_state_bound = np.array([
+            3.0, 3.0, 2.5,
+            2.5, 2.5, 2.5,
+            np.pi, np.pi, np.inf,
+            10.0, 10.0, 10.0,
+            0.145, 0.145, 0.145, 0.145])
 
-        gates_pos = track_config['gates.pos']
-        gates_rpy = track_config['gates.rpy']
-        obstacles_pos = track_config['obstacles.pos']
         initial_info = {
-            'gates.pos': gates_pos,
-            'gates.rpy': gates_rpy,
-            'obstacles.pos': obstacles_pos,
-            'env.freq': args.freq,
+            'env_freq': args.freq,
+            'nominal_physical_parameters': mpc_config['drone_params'],
         }
+
+        initial_obs = track_config
 
         ref = track_config['track_reference']
         gate_prox = track_config['gate_prox']
         next_gate_idx = track_config['next_gate']
-        ctrl = MPCControl(initial_info, mpc_config)
+
+        ctrl = MPCControl(initial_info=initial_info, initial_obs=initial_obs, config=mpc_config)
 
         worker_config = {
             'seed': args.seed,
@@ -80,7 +93,6 @@ if __name__ == "__main__":
         for init_i, (initial_state, x_guess, u_guess) in enumerate(zip(track_config['initial_states'],
                                                                   track_config['x_horizons'],
                                                                   track_config['u_horizons'])):
-
 
             state_config = {
                 'next_gate': ctrl.to_horizon(next_gate_idx, init_i, args.steps_n)
@@ -131,8 +143,7 @@ if __name__ == "__main__":
                     'objective': np.array(ctrl.ctrl.results_dict['obj']),
                 }
 
-                snippet_grp = state_grp.create_group(f'snippet_{run}')
-                dict_to_group(snippet_grp, None, result)
+                dict_to_group(state_grp, f'snippet_{run}', result)
 
 
 

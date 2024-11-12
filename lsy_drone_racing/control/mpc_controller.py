@@ -72,18 +72,8 @@ class Controller(BaseController):
         self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
         self.initial_obs = initial_obs
         self.initial_info = initial_info
-        self.initial_info['ctrl_freq'] = self.CTRL_FREQ
 
-        self.initial_info['nominal_physical_parameters'] = {
-            'quadrotor_mass': 0.03454,
-            'L': 0.046, # 0.0397,
-            'g': 9.81,
-            'quadrotor_ixx_inertia': 1.4e-05,
-            'quadrotor_iyy_inertia': 1.4e-05,
-            'quadrotor_izz_inertia': 2.17e-05,
-            'quadrotor_kf': 3.16e-10,
-            'quadrotor_km': 7.94e-12,
-        }
+        self.initial_info['nominal_physical_parameters'] = mpc_config.drone_params
 
         self.episode_reset()
 
@@ -99,10 +89,14 @@ class Controller(BaseController):
         self.initial_info['gate_prox'] = self.planner.gate_prox
 
         # compute solutions once with unlimited time to set internal MPC state for a good warm start
-        # self.async_ctrl.compute_control(self.initial_obs, self.initial_info)
+        self.initial_info['step'] = 0
+        self.async_ctrl.ctrl.ctrl.horizon_skip = 0
+        self.async_ctrl.compute_control(self.initial_obs, self.initial_info)
+        self.initial_info['step'] = -mpc_config.ratio
+        self.async_ctrl.ctrl.ctrl.horizon_skip = mpc_config.ratio
 
         # switch back solver options BEFORE starting the solver worker
-        self.async_ctrl.ctrl.ctrl.setup_optimizer(solver='ipopt', max_wall_time=self.CTRL_TIMESTEP * mpc_config.ratio * 0.6)
+        self.async_ctrl.ctrl.ctrl.setup_optimizer(solver='ipopt', max_wall_time=self.CTRL_TIMESTEP * mpc_config.ratio * 0.55)
         self.async_ctrl.start()
 
         # start precomputing first actions
@@ -159,9 +153,6 @@ class Controller(BaseController):
         truncated: bool,
         info: dict,
     ):
-        # if len(self.state_history):
-        #     draw_segment_of_traj(self.initial_info, self.state_history[-1]['pos'], obs['pos'], [0, 1, 0, 1])
-
         self.state_history.append(obs)
         self.action_history.append(action)
 

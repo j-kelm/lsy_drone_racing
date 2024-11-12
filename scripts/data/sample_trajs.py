@@ -15,7 +15,11 @@ hdf_path = "output/mm.hdf5"
 def dict_to_group(root, name: str, data: dict):
     grp = root.create_group(name)
     for key in data:
-        grp[key] = data[key]
+        if isinstance(data[key], dict):
+            dict_to_group(grp, key, data[key])
+        else:
+            grp[key] = data[key]
+
 
 if __name__ == "__main__":
     path = "config/mpc.yaml"
@@ -23,7 +27,7 @@ if __name__ == "__main__":
         mpc_config = munchify(yaml.safe_load(file))
 
     mpc_config['ctrl_timestep'] = 1 / CTRL_FREQ
-    mpc_config['env.freq'] = CTRL_FREQ
+    mpc_config['env_freq'] = CTRL_FREQ
 
     f = h5py.File(hdf_path, 'w', libver='latest')
 
@@ -31,7 +35,7 @@ if __name__ == "__main__":
 
     for track_i in range(NUM_TRACKS):
         # TODO: Randomize gate, obstacle and starting positions
-        with open('config/cluttered_new.toml', "r") as file:
+        with open('config/cluttered.toml', "r") as file:
             track_config = munchify(toml.load(file))
 
         gates = track_config.env.track.gates
@@ -40,21 +44,29 @@ if __name__ == "__main__":
         obstacles_pos = [obstacle.pos for obstacle in track_config.env.track.obstacles]
 
         initial_info = {
-            'gates.pos': gates_pos,
-            'gates.rpy': gates_rpy,
-            'obstacles.pos': obstacles_pos,
-            'env.freq': CTRL_FREQ,
+            'env_freq': CTRL_FREQ,
+            'nominal_physical_parameters': mpc_config.drone_params,
+        }
+
+        initial_obs = {
+            'gates_pos': gates_pos,
+            'gates_rpy': gates_rpy,
+            'obstacles_pos': obstacles_pos,
+            'pos': track_config.env.track.drone.pos,
+            'vel': track_config.env.track.drone.vel,
+            'rpy': track_config.env.track.drone.rpy,
+            'ang_vel':  track_config.env.track.drone.ang_vel
         }
 
         planner = MinsnapPlanner(initial_info=initial_info,
-                                      initial_obs=track_config.env.track.drone,
-                                      speed=1.5,
-                                      )
+                                 initial_obs=initial_obs,
+                                 speed=1.5,
+                                 )
 
         state = track_config.env.track.drone
         state = np.concatenate([state['pos'], state['vel'], state['rpy'], state['ang_vel']])
 
-        ctrl = MPCControl(initial_info, mpc_config)
+        ctrl = MPCControl(initial_info, initial_obs, mpc_config)
 
         # loop mpc through entire track
         for step in range(np.shape(planner.ref)[1]):
@@ -62,13 +74,14 @@ if __name__ == "__main__":
                 'step': step,
                 'gate_prox': planner.gate_prox
             }
-            inputs, next_state, outputs = ctrl.compute_control(state, planner.ref, info)
-            state = next_state[:12]
+            inputs, states, outputs = ctrl.compute_control(state, planner.ref, info)
+
+            state = states[:12, 1]
 
         result = {
-            'gates.pos': gates_pos,  # ndarray (gates, 3)
-            'gates.rpy': gates_rpy,  # ndarray (gates, 3)
-            'obstacles.pos': obstacles_pos,  # ndarray (obstacles, 3)
+            'gates_pos': gates_pos,  # ndarray (gates, 3)
+            'gates_rpy': gates_rpy,  # ndarray (gates, 3)
+            'obstacles_pos': obstacles_pos,  # ndarray (obstacles, 3)
             'track_reference': planner.ref,  # ndarray (states, steps)
             'next_gate': planner.next_gate_idx,  # ndarray (1, steps)
             'gate_prox': planner.gate_prox,  # ndarray (1, steps)

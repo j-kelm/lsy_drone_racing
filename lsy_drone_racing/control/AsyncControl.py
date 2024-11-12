@@ -32,8 +32,9 @@ class AsyncControl(mp.Process):
         """
         A subclass should implement this method in order to run it in a worker thread
 
-        obs: observation dict
-        info: info dict
+        Args:
+            obs: observation dict
+            info: info dict
         """
         raise NotImplementedError
 

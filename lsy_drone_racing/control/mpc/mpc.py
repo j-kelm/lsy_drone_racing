@@ -103,7 +103,7 @@ class MPC:
                                          self.model.nu,
                                          self.dt)
 
-    def setup_optimizer(self, solver='qrsqp', max_iter=None, max_wall_time=None):
+    def setup_optimizer(self, solver='ipopt', max_iter=None, max_wall_time=None):
         '''Sets up nonlinear optimization problem.'''
         print(colored(f'Setting up optimizer with {solver}', 'green'))
         nx, nu = self.model.nx, self.model.nu
@@ -152,11 +152,6 @@ class MPC:
             next_state = self.dynamics_func(x0=x_var[:, i], p=u_var[:, i])['xf']
             opti.subject_to(x_var[:, i + 1] == next_state)
 
-            #next_state = self.dynamics_func(x0=x_var[:, i], p=np.zeros(nu))['xf']
-            #opti.subject_to(x_var[:-4, i + 1] == next_state[:-4])
-            #opti.subject_to(x_var[-4:, i + 1] == x_var[-4:, i] + u_var[:, i])
-
-
             # hard constraints
             for sc_i, state_constraint in enumerate(self.state_constraints):
                 opti.subject_to(state_constraint(x_var[:, i]) < -self.constraint_tol)
@@ -187,11 +182,17 @@ class MPC:
         opti.minimize(cost)
 
         # Create solver
+        jit_options = {"flags": ["-Ofast", "-march=native"], "verbose": True}
+
         opts = {'expand': True,
                 'error_on_fail': False,
                 'ipopt.print_level':0,
                 'print_time':0,
-                'record_time': 1}
+                'record_time': 1,
+                'jit': False,
+                'compiler': 'shell',
+                'jit_options': jit_options,
+        }
         if max_iter is not None:
             opts['ipopt.max_iter'] = max_iter
         if max_wall_time is not None:
@@ -228,7 +229,7 @@ class MPC:
         Returns:
             action (ndarray): Input/action to the task/env.
         '''
-        time_before = time.time()
+        time_before = time.perf_counter()
 
         opti_dict = self.opti_dict
         opti = opti_dict['opti']
@@ -293,7 +294,7 @@ class MPC:
             sol = opti.solve()
             x_val, u_val = sol.value(x_var), sol.value(u_var)
         except RuntimeError as e:
-            print(colored(f'Infeasible MPC Problem: {str(e)}', 'red'))
+            print(colored(f'Infeasible MPC Problem: {opti.return_status()}', 'red'))
 
             if self.solver == 'ipopt':
                 x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
@@ -343,12 +344,12 @@ class MPC:
             states = np.array([x_val[0:]])
             outputs = np.array([y[0:]])
 
-        time_after = time.time()
+        time_after = time.perf_counter()
         print('MPC select_action time: ', time_after - time_before)
         return actions, states, outputs
 
     def to_horizon(self, goal_states):
-        '''Constructs reference states along mpc horizon.(nx, T+1).'''
+        """Constructs reference states along mpc horizon. (nx, T+1)."""
         # Slice trajectory for horizon steps, if not long enough, repeat last state.
         start = 0
         end = min(self.T + 1, goal_states.shape[-1])

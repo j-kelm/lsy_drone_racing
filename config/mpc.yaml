@@ -2,7 +2,7 @@ q: [
   15.0, 15.0, 15.0,
   0.1, 0.1, 0.1,
   0.01, 0.01, 0.00,
-  1.0e-1, 1.0e-1, 1.0e-1,
+  1.5e-1, 1.5e-1, 1.5e-1,
   0.01, 0.01, 0.01, 0.01,
 ]
 
@@ -12,4 +12,14 @@ r: [
 
 horizon_sec: 0.8
 ratio: 2
+
+drone_params:
+  'quadrotor_mass': 0.03454
+  'L': 0.046 # 0.0397
+  'g': 9.81
+  'quadrotor_ixx_inertia': 1.4e-05
+  'quadrotor_iyy_inertia': 1.4e-05
+  'quadrotor_izz_inertia': 2.17e-05
+  'quadrotor_kf': 3.16e-10
+  'quadrotor_km': 7.94e-12
 

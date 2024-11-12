@@ -14,14 +14,16 @@ class MPCControl:
 
         INSTRUCTIONS:
             The controller's constructor has access the initial state `initial_obs` and the a priori
-            infromation contained in dictionary `initial_info`. Use this method to initialize
+            information contained in dictionary `initial_info`. Use this method to initialize
             constants, counters, pre-plan trajectories, etc.
 
         Args:
             initial_obs: The initial observation of the environment's state. See the environment's
                 observation space for details.
             initial_info: Additional environment information from the reset.
+            config: MPC configuration
         """
+
         # Save environment and control parameters.
         self.CTRL_FREQ = initial_info["env_freq"]
         self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
@@ -35,11 +37,11 @@ class MPCControl:
         # Get model and constraints
         self.model = Model(info=self.initial_info)
 
-        self.model.state_constraints += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
-        self.model.state_constraints_soft += [lambda x: -80 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 80 / 180 * np.pi] # max roll and pitch
-        self.model.state_constraints_soft += [lambda x: 0.05 - x[2]]
+        self.model.state_constraints_soft += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
+        self.model.state_constraints += [lambda x: -80 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 80 / 180 * np.pi] # max roll and pitch
+        self.model.state_constraints += [lambda x: 0.05 - x[2]]
 
-        self.model.input_constraints_soft += [lambda u: -10 * 0.145 / self.CTRL_FREQ - u, lambda u: u - 10 * 0.145 / self.CTRL_FREQ]
+        self.model.input_constraints_soft += [lambda u: -5 * 0.145 / self.CTRL_FREQ - u, lambda u: u - 5 * 0.145 / self.CTRL_FREQ]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 
@@ -48,7 +50,7 @@ class MPCControl:
             ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.17) # r = 0.14
 
         for gate_pos, gate_rpy in zip(self.initial_obs['gates_pos'], self.initial_obs['gates_rpy']):
-            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.13) # r = 0.12
+            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.12, s=1.7) # r = 0.12
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 

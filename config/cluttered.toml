@@ -49,6 +49,7 @@ rpy = [0.0, 0.0, -0.78]
 [[env.track.gates]]
 pos = [0.0, 0.5, 0.525]
 rpy = [0.0, 0.0, 0.78]
+# rpy = [0.0, 0.0, 0.0]
 [[env.track.gates]]
 pos = [-0.5, -0.5, 1.1]
 rpy = [0.0, 0.0, 3.14]
@@ -73,7 +74,7 @@ pos = [0.0, 1.0, 1.05]
 # pos = [0.15, -1.2, 1.05]
 
 [env.track.drone]
-pos = [1.0, 1.0, 0.15]
+pos = [1.0, 1.0, 0.10]
 rpy = [0, 0, 0]
 vel = [0, 0, 0]
 ang_vel = [0, 0, 0]
@@ -81,8 +82,8 @@ ang_vel = [0, 0, 0]
 [env.randomization.drone_pos]
 type = "uniform" # Everything that can be used as a distribution in numpy.random
 # Kwargs that are permissable in the np random function
-low = [-0.1, -0.1, 0.0]
-high = [0.1, 0.1, 0.02]
+low = [-0.2, -0.2, 0.0]
+high = [0.2, 0.2, 0.02]
 
 [env.randomization.drone_rpy]
 type = "uniform"
