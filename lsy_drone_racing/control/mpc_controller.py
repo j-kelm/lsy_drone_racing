@@ -94,20 +94,21 @@ class Controller(BaseController):
         self.async_ctrl = AsyncMPC(initial_info=initial_info,initial_obs=initial_obs, mpc_config=mpc_config, daemon=True)
 
         if 'step' not in self.initial_info:
-            self.initial_info['step'] = 0
+            self.initial_info['step'] = -mpc_config.ratio
         self.initial_info['reference'] = self.planner.ref
         self.initial_info['gate_prox'] = self.planner.gate_prox
 
-        # this sets the internal MPC state for a good warm start
-        self.async_ctrl.compute_control(self.initial_obs, self.initial_info)
-        self.async_ctrl.ctrl.ctrl.setup_optimizer(solver='ipopt', max_wall_time=self.CTRL_TIMESTEP * mpc_config.ratio * 0.5)
+        # compute solutions once with unlimited time to set internal MPC state for a good warm start
+        # self.async_ctrl.compute_control(self.initial_obs, self.initial_info)
 
+        # switch back solver options BEFORE starting the solver worker
+        self.async_ctrl.ctrl.ctrl.setup_optimizer(solver='ipopt', max_wall_time=self.CTRL_TIMESTEP * mpc_config.ratio * 0.6)
         self.async_ctrl.start()
 
         # start precomputing first actions
         self.async_ctrl.put_obs(obs=self.initial_obs, info=self.initial_info, block=False)
 
-        # wait for first obs to be processed
+        # wait for first actions to be computed
         self.async_ctrl.wait_tasks()
 
 
@@ -133,12 +134,14 @@ class Controller(BaseController):
         info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox
 
+        # set funky body_rate obs to zero (good guesstimate)
         obs['ang_vel'] = np.zeros(3)
 
+        # only put new obs and retrieve action to minimize control delay
         self.async_ctrl.put_obs(obs, info, block=False)
         action, step_idx = self.async_ctrl.get_action(block=True, timeout=0.2 * self.CTRL_TIMESTEP)
 
-        # assert self._tick == step_idx, f'Action provided for step {step_idx}, should be {self._tick}'
+        assert self._tick == step_idx, f'Action was provided for step {step_idx}, should be {self._tick}'
 
         return action
 

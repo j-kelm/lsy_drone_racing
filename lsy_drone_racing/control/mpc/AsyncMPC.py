@@ -12,15 +12,8 @@ class AsyncMPC(AsyncControl):
         self.ctrl = MPCControl(initial_info, initial_obs, mpc_config)
 
     def compute_control(self, obs, info):
-        pos = obs['pos']
-        rpy = obs['rpy']
-        vel = obs['vel']
-        body_rates = obs['ang_vel']
-        obs = np.concatenate([pos, vel, rpy, body_rates])
-
+        obs = np.concatenate([obs['pos'], obs['rpy'], obs['vel'], obs['ang_vel']])
         inputs, states, outputs = self.ctrl.compute_control(obs, info['reference'], info)
-
-        out = dict()
 
         target_pos = outputs[:3]
         target_vel = outputs[3:6]
@@ -28,9 +21,10 @@ class AsyncMPC(AsyncControl):
         target_yaw = outputs[11:12]
         target_body_rates = outputs[12:15]
 
-        out['inputs'] = outputs[-4:].T - inputs.T/2
-        out['actions'] = np.vstack([target_pos, target_vel, target_acc, target_yaw, target_body_rates]).T
-        out['outputs'] = outputs.T
-        out['states'] = states.T
+        out = {
+            'actions': np.vstack([target_pos, target_vel, target_acc, target_yaw, target_body_rates]).T,
+            'outputs': outputs.T,
+            'states': states.T,
+        }
 
         return out

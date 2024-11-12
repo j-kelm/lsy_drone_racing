@@ -29,6 +29,12 @@ class AsyncControl(mp.Process):
         self._obs_queue.join()
 
     def compute_control(self, obs, info):
+        """
+        A subclass should implement this method in order to run it in a worker thread
+
+        obs: observation dict
+        info: info dict
+        """
         raise NotImplementedError
 
     def run(self):
@@ -38,7 +44,8 @@ class AsyncControl(mp.Process):
 
             # compute new action every ratio steps
             if not info['step'] % self._ratio:
-                # predict into future
+                # adjust step into future
+                info['step'] += self._ratio
 
                 out = self.compute_control(obs, info)
                 actions = out['actions'][self._ratio:]

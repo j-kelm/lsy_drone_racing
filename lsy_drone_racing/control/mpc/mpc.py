@@ -223,7 +223,6 @@ class MPC:
             obs (ndarray): Current state/observation.
             ref (ndarray): Current state reference to track
             info (dict): Current info containing the reference, warmstart info, weighted cost matrices
-            err_on_fail (bool): Throw an exception for infeasible MPC
             force_warm_start (bool): Force use of reference/provided guess for warm-starting
 
         Returns:
