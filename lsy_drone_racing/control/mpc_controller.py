@@ -175,8 +175,3 @@ class Controller(BaseController):
     def reset(self):
         print('reset')
         pass
-
-    def close(self):
-        self.async_ctrl.quit()
-        self.async_ctrl.join()
-        print('close')

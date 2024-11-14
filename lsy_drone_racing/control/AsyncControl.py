@@ -17,6 +17,9 @@ class AsyncControl(mp.Process):
         self._obs_queue = mp.JoinableQueue()
         self._action_queue = mp.Queue()
 
+        self._action_queue.cancel_join_thread()
+        self._obs_queue.cancel_join_thread()
+
         self._ratio = ratio
 
     def put_obs(self, obs, info, *args, **kwargs):
@@ -24,6 +27,7 @@ class AsyncControl(mp.Process):
 
     def get_action(self, *args, **kwargs):
         return self._action_queue.get(*args, **kwargs)
+
 
     def wait_tasks(self):
         self._obs_queue.join()
@@ -38,21 +42,10 @@ class AsyncControl(mp.Process):
         """
         raise NotImplementedError
 
-    def quit(self):
-        self.put_obs(None, None)
-
     def run(self):
         while True:
             # blocking, wait until new obs is available
-            try:
-                obs, info = self._obs_queue.get(block=True, timeout=0.5)
-            except queue.Empty:
-                continue
-
-            if obs is None or info is None:
-                self.put_obs(None, None)
-                self._obs_queue.task_done()
-                break
+            obs, info = self._obs_queue.get(block=True)
 
             # compute new action every ratio steps
             if not info['step'] % self._ratio:

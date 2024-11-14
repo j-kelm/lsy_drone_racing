@@ -14,7 +14,7 @@ soft_penalty: 5.0e+3
 horizon_sec: 0.7
 ratio: 2
 gate_prioritization: 4.0
-max_iter: 2
+max_iter: 22
 wall_time_ratio: 5.55
 wait_time_ratio: 0.2
 
