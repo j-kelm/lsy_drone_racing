@@ -1,5 +1,5 @@
 import multiprocessing as mp
-import numpy as np
+import queue
 
 
 
@@ -38,10 +38,21 @@ class AsyncControl(mp.Process):
         """
         raise NotImplementedError
 
+    def quit(self):
+        self.put_obs(None, None)
+
     def run(self):
         while True:
             # blocking, wait until new obs is available
-            obs, info = self._obs_queue.get()
+            try:
+                obs, info = self._obs_queue.get(block=True, timeout=0.5)
+            except queue.Empty:
+                continue
+
+            if obs is None or info is None:
+                self.put_obs(None, None)
+                self._obs_queue.task_done()
+                break
 
             # compute new action every ratio steps
             if not info['step'] % self._ratio:
@@ -57,5 +68,6 @@ class AsyncControl(mp.Process):
 
             # indicate that all currents obs are processed
             self._obs_queue.task_done()
+
 
 

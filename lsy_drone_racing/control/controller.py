@@ -102,3 +102,6 @@ class BaseController(ABC):
 
     def episode_reset(self):
         """Reset the controller's internal state and models if necessary."""
+
+    def close(self):
+        """Free all controller resources"""

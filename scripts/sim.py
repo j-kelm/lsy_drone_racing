@@ -77,7 +77,13 @@ def simulate(
             if gui:
                 gui_timer = update_gui_timer(curr_time, env.unwrapped.sim.pyb_client, gui_timer)
 
-            action = controller.compute_control(obs, info)
+            try:
+                action = controller.compute_control(obs, info)
+            except BaseException as e:
+                env.close()
+                controller.close()
+                raise e
+
             obs, reward, terminated, truncated, info = env.step(action)
             done = terminated or truncated
             # Update the controller internal state and models.
@@ -97,6 +103,7 @@ def simulate(
 
     # Close the environment
     env.close()
+    controller.close()
     return ep_times
 
 

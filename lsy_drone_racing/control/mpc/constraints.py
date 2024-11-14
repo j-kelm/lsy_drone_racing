@@ -1,16 +1,46 @@
 import numpy as np
 import casadi as cs
+import pybullet as p
 
 from lsy_drone_racing.control.utils import np_rot_z
 
+from scipy.spatial.transform import Rotation as R
+
+
+def draw_elliptic_sphere(
+        pos, scale, quat=(0, 0, 0, 1), rgbaColor=(1, 0, 0, 0.2)
+):
+    visual_shape_id = p.createVisualShape(
+        shapeType=p.GEOM_MESH,
+        fileName="sphere_smooth.obj",
+        meshScale=scale,
+        # visualFramePosition=shift,
+        rgbaColor=rgbaColor,
+    )
+
+    p.createMultiBody(
+        baseMass=0,
+        baseVisualShapeIndex=visual_shape_id,
+        basePosition=pos,
+        baseOrientation=quat,
+    )
+
 def vblock_constraint(obstacle_center, length, r=0.15):
-    return lambda x:  ((x[0] - obstacle_center[0]) / r) ** 2 + ((x[1] - obstacle_center[1]) / r) ** 2 + (
-                (2 * (x[2] - obstacle_center[2]) / length)) ** 4
+    def g(x):
+        return ((x[0] - obstacle_center[0]) / r) ** 2 + ((x[1] - obstacle_center[1]) / r) ** 2 + (
+            (2 * (x[2] - obstacle_center[2]) / length)) ** 4
+
+    draw_elliptic_sphere(obstacle_center, [r, r, length/2])
+
+    return g
 
 def hblock_constraint(obstacle_center, width, yaw, r=0.15):
     def g(x):
         x_rel = np_rot_z(yaw) @ (x[0:3] - obstacle_center[:, None])
         return  (2*x_rel[0]/width)**2 + (x_rel[1]/r)**2 + (x_rel[2]/r)**2
+
+    quat = R.from_euler("xyz", [0, 0, yaw], degrees=False).as_quat()
+    draw_elliptic_sphere(obstacle_center, [width/2, r, r], quat=quat)
 
     return g
 
@@ -32,7 +62,7 @@ def gate_constraints(gate_pos, gate_yaw, r=0.15, s=1.6):
     gate_pos = np.array(gate_pos)
 
     constraints = []
-    gate_size = 0.45
+    gate_size = 0.48
 
     # pole 1
     pos = np.zeros(3)

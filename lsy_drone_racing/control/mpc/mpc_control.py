@@ -9,7 +9,7 @@ from lsy_drone_racing.control.mpc.constraints import obstacle_constraints, gate_
 
 
 class MPCControl:
-    def __init__(self, initial_info: dict, initial_obs: dict, config: dict):
+    def __init__(self, initial_info: dict, initial_obs: dict, config):
         """Initialization of the controller.
 
         INSTRUCTIONS:
@@ -32,32 +32,31 @@ class MPCControl:
         self.initial_obs = initial_obs
 
         self.config = config
-        # self.multi_starts = self.config['multi_starts']
 
         # Get model and constraints
         self.model = Model(info=self.initial_info)
 
-        self.model.state_constraints_soft += [lambda x: 0.03 - x[12:16], lambda x: x[12:16] - 0.145] # 0.03 <= thrust <= 0.145
-        self.model.state_constraints += [lambda x: -80 / 180 * np.pi - x[6:8], lambda x: x[6:8] - 80 / 180 * np.pi] # max roll and pitch
-        self.model.state_constraints += [lambda x: 0.05 - x[2]]
+        self.model.state_constraints_soft += [lambda x: config.constraints.min_thrust - x[12:16], lambda x: x[12:16] - config.constraints.max_thrust] # 0.03 <= thrust <= 0.145
+        self.model.state_constraints += [lambda x: -config.constraints.max_tilt / 180 * np.pi - x[6:8], lambda x: x[6:8] - config.constraints.max_tilt / 180 * np.pi] # max roll and pitch
+        self.model.state_constraints_soft += [lambda x: config.constraints.min_z - x[2]]
 
-        self.model.input_constraints_soft += [lambda u: -5 * 0.145 / self.CTRL_FREQ - u, lambda u: u - 5 * 0.145 / self.CTRL_FREQ]
+        self.model.input_constraints_soft += [lambda u: -5 * config.constraints.max_thrust / self.CTRL_FREQ - u, lambda u: u - 5 * config.constraints.max_thrust / self.CTRL_FREQ]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 
         ellipsoid_constraints = list()
         for obstacle_pos in self.initial_obs['obstacles_pos']:
-            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=0.17) # r = 0.14
+            ellipsoid_constraints += obstacle_constraints(obstacle_pos + [0, 0, 0.35], r=config.constraints.obstacle_r, s=1.3) # r = 0.14
 
         for gate_pos, gate_rpy in zip(self.initial_obs['gates_pos'], self.initial_obs['gates_rpy']):
-            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=0.12, s=1.7) # r = 0.12
+            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=config.constraints.gate_r, s=1.6) # r = 0.12
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 
         self.ctrl = MPC(model=self.model,
                         horizon=int(self.config['horizon_sec'] * self.CTRL_FREQ),
                         q_mpc=self.config['q'], r_mpc=self.config['r'],
-                        soft_penalty=5e3,
+                        soft_penalty=config.soft_penalty,
                         err_on_fail=False,
                         horizon_skip=config['ratio'],
         )
@@ -97,7 +96,7 @@ class MPCControl:
 
         q_pos = np.zeros_like(self.config['q'])
         q_pos[0:3] = self.config['q'][0:3]
-        info['q'] = np.array(self.config['q'])[:, np.newaxis] + 5.0 * np.outer(self.config['q'], gate_prox) # 4.0 * np.outer(q_pos, gate_prox)
+        info['q'] = np.array(self.config['q'])[:, np.newaxis] + self.config.gate_prioritization * np.outer(self.config['q'], gate_prox) # 4.0 * np.outer(q_pos, gate_prox)
         # try:
         #     inputs, states, outputs = self.ctrl.select_action(obs=state,
         #                                                           ref=remaining_ref,
