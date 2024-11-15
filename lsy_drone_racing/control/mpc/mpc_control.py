@@ -40,7 +40,7 @@ class MPCControl:
         self.model.state_constraints += [lambda x: -config.constraints.max_tilt / 180 * np.pi - x[6:8], lambda x: x[6:8] - config.constraints.max_tilt / 180 * np.pi] # max roll and pitch
         self.model.state_constraints_soft += [lambda x: config.constraints.min_z - x[2]]
 
-        self.model.input_constraints_soft += [lambda u: -5 * config.constraints.max_thrust / self.CTRL_FREQ - u, lambda u: u - 5 * config.constraints.max_thrust / self.CTRL_FREQ]
+        self.model.input_constraints_soft += [lambda u: -config.constraints.max_thrust_change * config.constraints.max_thrust / self.CTRL_FREQ - u, lambda u: u - config.constraints.max_thrust_change * config.constraints.max_thrust / self.CTRL_FREQ]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
         # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
 
