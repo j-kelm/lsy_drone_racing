@@ -9,7 +9,7 @@ from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
 
 NUM_TRACKS = 1
-CTRL_FREQ = 30
+CTRL_FREQ = 60
 hdf_path = "output/mm.hdf5"
 
 def dict_to_group(root, name: str, data: dict):
@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     for track_i in range(NUM_TRACKS):
         # TODO: Randomize gate, obstacle and starting positions
-        with open('config/cluttered.toml', "r") as file:
+        with open('config/multi_modality.toml', "r") as file:
             track_config = munchify(toml.load(file))
 
         gates = track_config.env.track.gates
@@ -58,10 +58,12 @@ if __name__ == "__main__":
             'ang_vel':  track_config.env.track.drone.ang_vel
         }
 
-        planner = MinsnapPlanner(initial_info=initial_info,
-                                 initial_obs=initial_obs,
-                                 speed=1.5,
-                                 )
+        planner = MinsnapPlanner(
+            initial_info=initial_info,
+            initial_obs=initial_obs,
+            speed=mpc_config.planner.speed,
+            gate_time_constant=mpc_config.planner.gate_time_const,
+        )
 
         state = track_config.env.track.drone
         state = np.concatenate([state['pos'], state['vel'], state['rpy'], state['ang_vel']])

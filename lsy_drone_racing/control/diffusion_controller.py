@@ -66,7 +66,7 @@ class Controller(BaseController):
         self.n_latency_steps = 0
 
         self.device = torch.device('cuda:0')
-        checkpoint = 'models/diffusion/drone/checkpoints/latest.ckpt'
+        checkpoint = 'models/diffusion/latest.ckpt'
         output_dir = 'output/diffusion_eval_output'
 
         # load checkpoint
@@ -111,10 +111,7 @@ class Controller(BaseController):
         rpy = obs['rpy']
         vel = obs['vel']
         body_rates = obs['ang_vel']
-        state = np.hstack([pos, vel, rpy, body_rates, info['target_gate'], np.hstack(info['obstacles.pos']), np.hstack(info['gates.pos']), np.hstack(info['gates.rpy'])])
-
-        if len(self.state_history):
-            draw_segment_of_traj(self.initial_info, self.state_history[-1][0:3], pos, [0, 1, 0, 1])
+        state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])])
 
         # create obs dict
         np_obs_dict = {

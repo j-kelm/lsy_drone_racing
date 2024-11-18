@@ -4,7 +4,7 @@
 # | :-----------------: | :-----------------------: | :-------------------------: | :--------------------: | :---------------: |
 # | `level3.toml`       | **Yes**                   | **Yes**                     | **Yes**                | Robustness        |
 [controller]
-file = "mpc_controller.py" # Put your controller file name here. Specifying a controller as argument to scripts will override this setting. Controllers are located in `lsy_drone_racing/control/`
+file = "diffusion_controller.py" # Put your controller file name here. Specifying a controller as argument to scripts will override this setting. Controllers are located in `lsy_drone_racing/control/`
 
 [sim]
 # Physics options:
@@ -32,8 +32,8 @@ high = [0.1, 0.1, 0.1]
 [env]
 id = "DroneRacing-v0" # Either "DroneRacing-v0" or "DroneRacingThrust-v0". If using "DroneRacingThrust-v0", the drone will use the thrust controller instead of the position controller.
 reseed = false        # Whether to re-seed the random number generator between episodes
-seed = 1338           # Random seed
-freq = 30             # Frequency of the environment's step function, in Hz
+seed = 1337           # Random seed
+freq = 60             # Frequency of the environment's step function, in Hz
 symbolic = false      # Whether to include symbolic expressions in the info dict. Note: This can interfere with multiprocessing! If you want to parallelize your training, set this to false.
 sensor_range = 0.45   # Range at which the exact location of gates and obstacles become visible to the drone. Objects that are not in the drone's sensor range report their nominal position.
 
@@ -41,15 +41,20 @@ sensor_range = 0.45   # Range at which the exact location of gates and obstacles
 # Tall gates: 1.0m height. Short gates: 0.525m height. Height is measured from the ground to the
 # center of the gate.
 [[env.track.gates]]
-pos = [1.0, 0.0, 0.525]
-rpy = [0.0, 0.0, -1.57079]
+pos = [0.0, 0.0, 0.55]
+rpy = [0.0, 0.0, 0.0]
+[[env.track.gates]]
+pos = [0.0, 2.0, 0.55]
+rpy = [0.0, 0.0, 0.0]
 
 # Obstacle height: 0.85m. Height is measured from the ground to the top of the obstacle.
 [[env.track.obstacles]]
-pos = [-0.0, 0.0, 1.05]
+pos = [0.0, -1.0, 1.05]
+[[env.track.obstacles]]
+pos = [0.0, 1.0, 1.05]
 
 [env.track.drone]
-pos = [-1.0, 0.0, 0.525]
+pos = [0.0, -2.0, 0.55]
 rpy = [0, 0, 0]
 vel = [0, 0, 0]
 ang_vel = [0, 0, 0]
@@ -63,18 +68,3 @@ high = 0.01
 type = "uniform"
 low = [-0.000001, -0.000001, -0.000001]
 high = [0.000001, 0.000001, 0.000001]
-
-[env.randomization.gate_pos]
-type = "uniform"
-low = [-0.0, -0.0, -0.0]
-high = [0.0, 0.0, 0.0]
-
-[env.randomization.gate_rpy]
-type = "uniform"
-low = [0.0, 0.0, 0.0]
-high = [0.0, 0.0, 0.0]
-
-[env.randomization.obstacle_pos]
-type = "uniform"
-low = [0.0, 0.0, 0.0]
-high = [0.0, 0.0, 0.0]

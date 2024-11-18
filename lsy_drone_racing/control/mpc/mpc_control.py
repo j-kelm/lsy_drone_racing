@@ -36,27 +36,26 @@ class MPCControl:
         # Get model and constraints
         self.model = Model(info=self.initial_info)
 
-        self.model.state_constraints_soft += [lambda x: config.constraints.min_thrust - x[12:16], lambda x: x[12:16] - config.constraints.max_thrust] # 0.03 <= thrust <= 0.145
-        self.model.state_constraints += [lambda x: -config.constraints.max_tilt / 180 * np.pi - x[6:8], lambda x: x[6:8] - config.constraints.max_tilt / 180 * np.pi] # max roll and pitch
-        self.model.state_constraints_soft += [lambda x: config.constraints.min_z - x[2]]
+        constraint_config = config['constraints']
 
-        self.model.input_constraints_soft += [lambda u: -config.constraints.max_thrust_change * config.constraints.max_thrust / self.CTRL_FREQ - u, lambda u: u - config.constraints.max_thrust_change * config.constraints.max_thrust / self.CTRL_FREQ]
-        # self.model.state_constraints_soft += [lambda x: -3.0 - x[1], lambda x: x[1] - 3.0]
-        # self.model.state_constraints_soft += [lambda x: -3.0 - x[0], lambda x: x[0] - 3.0]
+        self.model.state_constraints_soft += [lambda x: constraint_config['min_thrust'] - x[12:16], lambda x: x[12:16] - constraint_config['max_thrust']]
+        self.model.state_constraints += [lambda x: -constraint_config['max_tilt'] / 180 * np.pi - x[6:8], lambda x: x[6:8] - constraint_config['max_tilt']  / 180 * np.pi]
+        self.model.state_constraints_soft += [lambda x: constraint_config['min_z'] - x[2]]
+        self.model.input_constraints_soft += [lambda u: -constraint_config['max_thrust_change'] * constraint_config['max_thrust'] / self.CTRL_FREQ - u, lambda u: u - constraint_config['max_thrust_change'] * constraint_config['max_thrust'] / self.CTRL_FREQ]
 
         ellipsoid_constraints = list()
         for obstacle_pos in self.initial_obs['obstacles_pos']:
-            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=config.constraints.obstacle_r, s=1.3)
+            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=constraint_config['obstacle_r'], s=1.3)
 
         for gate_pos, gate_rpy in zip(self.initial_obs['gates_pos'], self.initial_obs['gates_rpy']):
-            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=config.constraints.gate_r, s=1.6)
+            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=constraint_config['gate_r'], s=1.6)
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 
         self.ctrl = MPC(model=self.model,
                         horizon=int(self.config['horizon_sec'] * self.CTRL_FREQ),
                         q_mpc=self.config['q'], r_mpc=self.config['r'],
-                        soft_penalty=config.soft_penalty,
+                        soft_penalty=config['soft_penalty'],
                         err_on_fail=False,
                         horizon_skip=config['ratio'],
         )
@@ -86,7 +85,6 @@ class MPCControl:
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
 
-
         state = np.concatenate([state, self.forces], axis=0)
         step = info['step']
 
@@ -96,26 +94,11 @@ class MPCControl:
 
         q_pos = np.zeros_like(self.config['q'])
         q_pos[0:3] = self.config['q'][0:3]
-        info['q'] = np.array(self.config['q'])[:, np.newaxis] + self.config.gate_prioritization * np.outer(self.config['q'], gate_prox) # 4.0 * np.outer(q_pos, gate_prox)
-        # try:
-        #     inputs, states, outputs = self.ctrl.select_action(obs=state,
-        #                                                           ref=remaining_ref,
-        #                                                           info=info,
-        #                                                           err_on_fail=True)
-        #
-        # except RuntimeError:  # use reference warm start on fail
-        #     print('[WARN] First attempt failed, trying again with reference warm-start.')
-        #     info['x_guess'] = None
-        #     inputs, states, outputs = self.ctrl.select_action(obs=state,
-        #                                                           ref=remaining_ref,
-        #                                                           info=info,
-        #                                                           err_on_fail=False,
-        #                                                           force_warm_start=True)
+        info['q'] = np.array(self.config['q'])[:, np.newaxis] + self.config['gate_prioritization'] * np.outer(self.config['q'], gate_prox)
 
         inputs, states, outputs = self.ctrl.select_action(obs=state,
                                                           ref=remaining_ref,
                                                           info=info)
-
 
         self.forces = states[12:16, 1]
 

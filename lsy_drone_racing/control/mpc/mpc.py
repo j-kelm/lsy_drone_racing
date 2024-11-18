@@ -187,6 +187,7 @@ class MPC:
         opts = {'expand': True,
                 'error_on_fail': False,
                 'ipopt.print_level':0,
+                'ipopt.print_timing_statistics': 'yes',
                 'print_time':0,
                 'record_time': 1,
                 'jit': False,
@@ -289,13 +290,17 @@ class MPC:
             opti.set_initial(x_var, x_guess)
             opti.set_initial(u_var, u_guess)
 
-        # Solve the optimization problem.
+        # Solve the optimization problem
         try:
             sol = opti.solve()
             x_val, u_val = sol.value(x_var), sol.value(u_var)
         except RuntimeError as e:
-            print(colored(f'Infeasible MPC Problem: {opti.return_status()}', 'red'))
-            x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
+            status = opti.return_status()
+            if status == 'NonIpopt_Exception_Thrown':
+                raise e
+            else:
+                print(colored(f'Infeasible MPC Problem: {status}', 'red'))
+                x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
 
         self.x_prev = x_val
         self.u_prev = u_val

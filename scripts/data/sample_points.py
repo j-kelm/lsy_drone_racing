@@ -32,7 +32,6 @@ if __name__ == "__main__":
     parser.add_argument("--out", "-o", help="Output path.", type=str)
     parser.add_argument("--runs", "-r", help="Amount of randomized initial states sampled for each reference step.", type=int, default=1)
     parser.add_argument("--steps" "-n", help="Steps to sample from each randomized initial state.", type=int, default=10)
-    parser.add_argument("--freq", "-f", help="Control frequency used for sampling.", type=float, default=30.0)
 
     args = parser.parse_args()
 
@@ -49,26 +48,26 @@ if __name__ == "__main__":
         # get random generator and seed
         rng = np.random.default_rng(seed=args.seed)
         randomizer_range = np.array([
-            0.25, 0.25, 0.25,
+            0.15, 0.15, 0.15,
             0.5, 0.5, 0.5,
-            np.pi/4, np.pi/4, np.pi/4,
+            np.pi/6, np.pi/6, np.pi/6,
             np.pi/2, np.pi/2, np.pi/2,
-            0.01, 0.01, 0.01, 0.01]) * 1.25
+            0.04, 0.04, 0.04, 0.04]) * 1.0
         lower_state_bound = np.array([
-            -3.0, -3.0, -0.1,
-            -2.5, -2.5, -2.5,
+            -3.0, -3.0, -mpc_config['constraints']['min_z'],
+            -2.0, -2.0, -2.0,
             -np.pi, -np.pi, -np.inf,
             -10.0, -10.0, -10.0,
-            0.03, 0.03, 0.03, 0.03])
+            *[mpc_config['constraints']['min_thrust']]*4])
         upper_state_bound = np.array([
             3.0, 3.0, 2.5,
-            2.5, 2.5, 2.5,
+            2.0, 2.0, 2.0,
             np.pi, np.pi, np.inf,
             10.0, 10.0, 10.0,
-            0.145, 0.145, 0.145, 0.145])
+            *[mpc_config['constraints']['max_thrust']]*4])
 
         initial_info = {
-            'env_freq': args.freq,
+            'env_freq': mpc_config['env_freq'],
             'nominal_physical_parameters': mpc_config['drone_params'],
         }
 
@@ -78,7 +77,7 @@ if __name__ == "__main__":
         gate_prox = track_config['gate_prox']
         next_gate_idx = track_config['next_gate']
 
-        ctrl = MPCControl(initial_info=initial_info, initial_obs=initial_obs, config=mpc_config)
+        ctrl = MPCControl(initial_info, initial_obs=initial_obs, config=mpc_config)
 
         worker_config = {
             'seed': args.seed,
@@ -118,13 +117,13 @@ if __name__ == "__main__":
                 # sample a few steps per initial point
                 for step in range(args.steps_n):
 
-                    inputs, next_state, outputs = ctrl.compute_control(state=state[:12], ref=ref, info={
+                    inputs, states, outputs = ctrl.compute_control(state=state[:12], ref=ref, info={
                         'step': init_i + step,
                         'gate_prox': gate_prox,
-                        'x_guess': x_guess,
-                        'u_guess': u_guess,
+                        #'x_guess': x_guess,
+                        #'u_guess': u_guess,
                     })
-                    state = next_state[:12]
+                    state = states[:12, 1]
 
                     if not ctrl.ctrl.results_dict['solution_found'][-1]:
                         break
@@ -144,6 +143,8 @@ if __name__ == "__main__":
                 }
 
                 dict_to_group(state_grp, f'snippet_{run}', result)
+
+    print(f'[WORKER{args.seed}] DONE')
 
 
 

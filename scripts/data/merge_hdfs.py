@@ -1,7 +1,7 @@
 import os
 import h5py
 
-folder = 'output/workers/'
+folder = 'output/finished/'
 output = 'output/merged.hdf5'
 
 if __name__ == '__main__':

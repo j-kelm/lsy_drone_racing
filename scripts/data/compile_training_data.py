@@ -3,11 +3,11 @@ import numpy as np
 
 from lsy_drone_racing.control.utils import to_local_obs, transform, to_local_action
 
-hdf_path = "output/track_data.hdf5"
+hdf_path = "output/merged.hdf5"
 output_path = "output/race_data.npz"
 
-PREDICTION_HORIZON = 10 # 32 # steps, must be smaller than horizon from MPC
-LOCAL_OBSERVATION = True
+PREDICTION_HORIZON = 16 # 32 # steps, must be smaller than horizon from MPC
+LOCAL_OBSERVATION = False
 
 pos_i = slice(0, 3)
 vel_i = slice(3, 6)
@@ -30,9 +30,9 @@ if __name__ == '__main__':
         if 'track_' in track_key:
             track_grp = in_file[track_key]
 
-            obstacles_pos = np.array(track_grp['config/obstacles.pos']).T
-            gates_pos = np.array(track_grp['config/gates.pos']).T
-            gates_rpy = np.array(track_grp['config/gates.rpy']).T
+            obstacles_pos = np.array(track_grp['config/obstacles_pos']).T
+            gates_pos = np.array(track_grp['config/gates_pos']).T
+            gates_rpy = np.array(track_grp['config/gates_rpy']).T
 
             for worker_key in track_grp:
                 if 'worker_' in worker_key:
@@ -47,7 +47,7 @@ if __name__ == '__main__':
                                 if 'snippet_' in snippet_key:
                                     snippet = point_grp[snippet_key]
                                     # filter bad snippets
-                                    if np.array(snippet['solution_found']).all() and (np.array(snippet['objective']) < 1.0e2).all():
+                                    if np.array(snippet['solution_found']).all() and (np.array(snippet['objective']) < 5.0e2).all():
                                         # fetch snippet length
                                         snippet_length = np.array(snippet['solution_found']).shape[0]
                                         init_states = np.array(snippet['initial_states'])[:, states_for_input]
@@ -80,9 +80,9 @@ if __name__ == '__main__':
                                         else:  # absolute observation
                                             init_states = np.array(snippet['initial_states'])[:, states_for_input]
                                             gate_index = np.array(point_grp['config/next_gate'])
-                                            obstacles_pos = np.array(track_grp['config/obstacles.pos']).reshape((1, -1))
-                                            gates_pos = np.array(track_grp['config/gates.pos']).reshape((1, -1))
-                                            gates_rpy = np.array(track_grp['config/gates.rpy']).reshape((1, -1))
+                                            obstacles_pos = np.array(track_grp['config/obstacles_pos']).reshape((1, -1))
+                                            gates_pos = np.array(track_grp['config/gates_pos']).reshape((1, -1))
+                                            gates_rpy = np.array(track_grp['config/gates_rpy']).reshape((1, -1))
 
                                             track = np.repeat(np.hstack([obstacles_pos, gates_pos, gates_rpy]),
                                                               snippet_length, axis=0)
