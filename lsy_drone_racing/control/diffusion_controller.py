@@ -33,19 +33,17 @@ import numpy.typing as npt
 import torch
 
 from lsy_drone_racing.control import BaseController
-from lsy_drone_racing.utils.utils import draw_segment_of_traj
 
 import hydra
 import dill
 from lsy_drone_racing.control.diffusion.base_workspace import BaseWorkspace
 from lsy_drone_racing.control.diffusion.pytorch_util import dict_apply
 
-from diffusion_policy.workspace.train_diffusion_unet_lowdim_workspace import TrainDiffusionUnetLowdimWorkspace
 
 class Controller(BaseController):
     """Template controller class."""
 
-    def __init__(self, initial_obs: npt.NDArray[np.floating], initial_info: dict):
+    def __init__(self, initial_obs: dict, initial_info: dict):
         """Initialization of the controller.
 
         INSTRUCTIONS:
@@ -88,35 +86,39 @@ class Controller(BaseController):
         self.state_history = []
         self.action_history = []
 
+        self.action_buffer = list()
+
 
     def compute_control(
-        self, obs: npt.NDArray[np.floating], info: dict | None = None
+        self, obs: dict, info: dict | None = None
     ) -> npt.NDarray[np.floating]:
-        """Compute the next desired position and orientation of the drone.
+        if not len(self.action_buffer):
+            if __debug__:
+                state = np.hstack([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
+                actions = self.compute_horizon(obs, 20)
 
-        INSTRUCTIONS:
-            Re-implement this method to return the target pose to be sent from Crazyswarm to the
-            Crazyflie using the `cmdFullState` call.
+                self.state_history.append(state)
+                self.action_history.append(actions)
+            else:
+                actions = self.compute_horizon(obs)
 
-        Args:
-            obs: The current observation of the environment. See the environment's observation space
-                for details.
-            info: Optional additional information as a dictionary.
+            self.action_buffer += [action for action in actions[0, :, :4].T]
 
-        Returns:
-            The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
-        """
+        return self.action_buffer.pop(0)
 
+    def compute_horizon(self, obs: dict, samples=1) -> npt.NDarray[np.floating]:
         pos = obs['pos']
         rpy = obs['rpy']
         vel = obs['vel']
         body_rates = obs['ang_vel']
-        state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])])
+        state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])]).reshape((1, 1, -1))
+
+        state = np.tile(state, (samples, 1, 1))
 
         # create obs dict
         np_obs_dict = {
             # handle n_latency_steps by discarding the last n_latency_steps
-            'obs': state.astype(np.float32).reshape((1, 1, -1)),
+            'obs': state.astype(np.float32),
         }
 
         # device transfer
@@ -134,19 +136,21 @@ class Controller(BaseController):
 
         # handle latency_steps, we discard the first n_latency_steps actions
         # to simulate latency
-        action = np_action_dict['action'][:, 0, :].flatten()
+        actions = np_action_dict['action'].swapaxes(1,2)
 
-        self.state_history.append(state)
-        self.action_history.append(action)
-
-        return action
+        return actions # (B, S, T)
 
     def episode_reset(self):
+        if __debug__:
+            self.save_episode("output/logs/sim_diffusion.npz")
         self.action_history = []
         self.state_history = []
 
     def save_episode(self, file):
-        pass
+        states = np.array(self.state_history)
+        actions = np.array(self.action_history)
+
+        np.savez(file, states=states, inputs=actions)
 
     def episode_learn(self):
         pass

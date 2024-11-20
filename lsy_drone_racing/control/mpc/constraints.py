@@ -28,9 +28,10 @@ def draw_elliptic_sphere(
 def vblock_constraint(obstacle_center, length, r=0.15):
     def g(x):
         return ((x[0] - obstacle_center[0]) / r) ** 2 + ((x[1] - obstacle_center[1]) / r) ** 2 + (
-            (2 * (x[2] - obstacle_center[2]) / length)) ** 4
+            (2 * (x[2] - obstacle_center[2]) / length)) ** 2 # TODO: Change back to 4
 
-    # draw_elliptic_sphere(obstacle_center, [r, r, length/2])
+    if __debug__:
+        draw_elliptic_sphere(obstacle_center, [r, r, length/2])
 
     return g
 
@@ -39,8 +40,9 @@ def hblock_constraint(obstacle_center, width, yaw, r=0.15):
         x_rel = np_rot_z(yaw) @ (x[0:3] - obstacle_center[:, None])
         return  (2*x_rel[0]/width)**2 + (x_rel[1]/r)**2 + (x_rel[2]/r)**2
 
-    # quat = R.from_euler("xyz", [0, 0, yaw], degrees=False).as_quat()
-    # draw_elliptic_sphere(obstacle_center, [width/2, r, r], quat=quat)
+    if __debug__:
+        quat = R.from_euler("xyz", [0, 0, yaw], degrees=False).as_quat()
+        draw_elliptic_sphere(obstacle_center, [width/2, r, r], quat=quat)
 
     return g
 

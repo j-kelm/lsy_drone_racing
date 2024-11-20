@@ -75,7 +75,7 @@ class TrainDiffusionUnetLowdimWorkspace(BaseWorkspace):
         assert isinstance(dataset, BaseLowdimDataset)
         normalizer = dataset.get_normalizer()
 
-        train_size = round(0.75 * len(dataset))
+        train_size = round(0.85 * len(dataset))
         val_size = len(dataset) - train_size
 
         train_set, val_set = torch.utils.data.random_split(dataset, (train_size, val_size))

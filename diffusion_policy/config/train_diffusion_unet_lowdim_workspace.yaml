@@ -19,7 +19,7 @@ past_action_visible: False
 keypoint_visible_rate: 1.0
 obs_as_local_cond: False
 obs_as_global_cond: True
-pred_action_steps_only: False
+pred_action_steps_only: True
 
 policy:
   _target_: diffusion_policy.policy.diffusion_unet_lowdim_policy.DiffusionUnetLowdimPolicy
@@ -32,8 +32,8 @@ policy:
     diffusion_step_embed_dim: 256
     down_dims: [256, 512, 1024]
     kernel_size: 5
-    n_groups: 4
-    cond_predict_scale: False
+    n_groups: 8
+    cond_predict_scale: True
   
   noise_scheduler:
     _target_: diffusers.schedulers.scheduling_ddpm.DDPMScheduler
@@ -68,14 +68,14 @@ ema:
   max_value: 0.9999
 
 dataloader:
-  batch_size: 64
+  batch_size: 512
   num_workers: 1
   shuffle: True
   pin_memory: True
   persistent_workers: False
 
 val_dataloader:
-  batch_size: 64
+  batch_size: 512
   num_workers: 1
   shuffle: False
   pin_memory: True
@@ -95,13 +95,13 @@ training:
   resume: True
   # optimization
   lr_scheduler: cosine
-  lr_warmup_steps: 5 #500
-  num_epochs: 50
+  lr_warmup_steps: 500 # actual steps, not episodes
+  num_epochs: 100
   gradient_accumulate_every: 1
-  use_ema: False # True
+  use_ema: True
   # training loop control
   # in epochs
-  rollout_every: 50
+  rollout_every: inf
   checkpoint_every: 5
   val_every: 1
   sample_every: 5
@@ -123,7 +123,7 @@ logging:
 checkpoint:
   topk:
     monitor_key: val_loss
-    mode: max
+    mode: min
     k: 5
     format_str: 'epoch={epoch:04d}-val_loss={val_loss:.3f}.ckpt'
   save_last_ckpt: True

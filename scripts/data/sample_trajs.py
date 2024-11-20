@@ -9,7 +9,6 @@ from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
 
 NUM_TRACKS = 1
-CTRL_FREQ = 60
 hdf_path = "output/mm.hdf5"
 
 def dict_to_group(root, name: str, data: dict):
@@ -26,9 +25,6 @@ if __name__ == "__main__":
     with open(path, "r") as file:
         mpc_config = munchify(yaml.safe_load(file))
 
-    mpc_config['ctrl_timestep'] = 1 / CTRL_FREQ
-    mpc_config['env_freq'] = CTRL_FREQ
-
     f = h5py.File(hdf_path, 'w', libver='latest')
 
     dict_to_group(f, 'config', mpc_config)
@@ -38,13 +34,16 @@ if __name__ == "__main__":
         with open('config/multi_modality.toml', "r") as file:
             track_config = munchify(toml.load(file))
 
+        mpc_config['ctrl_timestep'] = 1 / track_config.env.freq
+        mpc_config['env_freq'] = track_config.env.freq
+
         gates = track_config.env.track.gates
         gates_pos = [gate.pos for gate in gates]
         gates_rpy = [gate.rpy for gate in gates]
         obstacles_pos = [obstacle.pos for obstacle in track_config.env.track.obstacles]
 
         initial_info = {
-            'env_freq': CTRL_FREQ,
+            'env_freq': track_config.env.freq,
             'nominal_physical_parameters': mpc_config.drone_params,
         }
 
