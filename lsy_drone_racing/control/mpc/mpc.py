@@ -26,6 +26,7 @@ class MPC:
                  max_iter: int = 1000,
                  max_wall_time: float = 1.0e+20,
                  horizon_skip: int = 1,
+                 logs: bool = True,
                  **kwargs
                  ):
 
@@ -68,6 +69,7 @@ class MPC:
         self.soft_penalty = soft_penalty
         self.warmstart = warmstart
         self.horizon_skip = horizon_skip
+        self.logs = logs
 
         self.solver = solver
         self.max_iter = max_iter
@@ -84,7 +86,8 @@ class MPC:
         pass
 
     def reset(self):
-        print(colored('Resetting MPC', 'green'))
+        if __debug__:  # TODO: Introduce reasonable logger
+            print(colored('Resetting MPC', 'green'))
         '''Prepares for training or evaluation.'''
         # Dynamics model.
         # self.set_dynamics_func()
@@ -105,7 +108,8 @@ class MPC:
 
     def setup_optimizer(self, solver='ipopt', max_iter=None, max_wall_time=None):
         '''Sets up nonlinear optimization problem.'''
-        print(colored(f'Setting up optimizer with {solver}', 'green'))
+        if __debug__:  # TODO
+            print(colored(f'Setting up optimizer with {solver}', 'green'))
         nx, nu = self.model.nx, self.model.nu
         T = self.T
         # Define optimizer and variables.
@@ -186,9 +190,9 @@ class MPC:
 
         opts = {'expand': True,
                 'error_on_fail': False,
-                'ipopt.print_level':0,
+                'ipopt.print_level': 2 if __debug__ else 0,
                 'ipopt.print_timing_statistics': 'yes',
-                'print_time':0,
+                'print_time': 0,
                 'record_time': 1,
                 'jit': False,
                 'compiler': 'shell',
@@ -265,17 +269,21 @@ class MPC:
         if force_warm_start or (self.x_prev is None and self.u_prev is None):
             if self.warmstart:
                 if 'x_guess' in info and info['x_guess'] is not None:
-                    print(colored(f'setting initial state guess from info', 'green'))
+                    if __debug__:  # TODO
+                        print(colored(f'setting initial state guess from info', 'green'))
                     x_guess = info['x_guess']
                 else:
-                    print(colored(f'setting initial state guess from reference', 'green'))
+                    if __debug__:  # TODO
+                        print(colored(f'setting initial state guess from reference', 'green'))
                     x_guess = goal_states
 
                 if 'u_guess' in info and info['u_guess'] is not None:
-                    print(colored(f'setting initial input guess from info', 'green'))
+                    if __debug__:  # TODO
+                        print(colored(f'setting initial input guess from info', 'green'))
                     u_guess = info['u_guess']
                 else:
-                    print(colored(f'setting initial input guess from reference', 'green'))
+                    if __debug__:  # TODO
+                        print(colored(f'setting initial input guess from reference', 'green'))
                     u_guess = np.tile(np.expand_dims(np.zeros(4), axis=1), (1, self.T))
 
                 opti.set_initial(x_var, x_guess)
@@ -304,18 +312,20 @@ class MPC:
 
         self.x_prev = x_val
         self.u_prev = u_val
-        self.results_dict['horizon_states'].append(deepcopy(self.x_prev))
-        self.results_dict['horizon_inputs'].append(deepcopy(self.u_prev))
-        y = np.array(self.model.g_func(x=self.x_prev[:, 1:],
-                                                u=self.u_prev)['g'])
-        self.results_dict['horizon_outputs'].append(deepcopy(y))
-        self.results_dict['horizon_references'].append(deepcopy(goal_states))
 
-        stats = opti.stats()
-        self.results_dict['t_wall'].append(stats['t_wall_total'])
-        self.results_dict['solution_found'].append(stats['success'])
-        self.results_dict['iter_count'].append(stats['iter_count'])
-        self.results_dict['obj'].append(stats['iterations']['obj'][-1])
+        y = np.array(self.model.g_func(x=self.x_prev[:, 1:],
+                                       u=self.u_prev)['g'])
+
+        if self.logs:
+            stats = opti.stats()
+            self.results_dict['horizon_states'].append(deepcopy(self.x_prev))
+            self.results_dict['horizon_inputs'].append(deepcopy(self.u_prev))
+            self.results_dict['horizon_outputs'].append(deepcopy(y))
+            self.results_dict['horizon_references'].append(deepcopy(goal_states))
+            self.results_dict['t_wall'].append(stats['t_wall_total'])
+            self.results_dict['solution_found'].append(stats['success'])
+            self.results_dict['iter_count'].append(stats['iter_count'])
+            self.results_dict['obj'].append(stats['iterations']['obj'][-1])
 
         # Take the first action from the solved action sequence.
         if u_val.ndim > 1:
@@ -327,8 +337,9 @@ class MPC:
             states = np.array([x_val[0:]])
             outputs = np.array([y[0:]])
 
-        time_after = time.perf_counter()
-        print('MPC select_action time: ', time_after - time_before)
+        if __debug__:
+            time_after = time.perf_counter()
+            print('MPC select_action time: ', time_after - time_before)
         return actions, states, outputs
 
     def to_horizon(self, goal_states):

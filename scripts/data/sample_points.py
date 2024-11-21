@@ -52,7 +52,7 @@ if __name__ == "__main__":
             0.5, 0.5, 0.5,
             np.pi/6, np.pi/6, np.pi/6,
             np.pi/2, np.pi/2, np.pi/2,
-            0.04, 0.04, 0.04, 0.04]) * 1.0
+            0.04, 0.04, 0.04, 0.04]) * 2.0
         lower_state_bound = np.array([
             -3.0, -3.0, -mpc_config['constraints']['min_z'],
             -2.0, -2.0, -2.0,

@@ -1,6 +1,6 @@
 name: drone_lowdim
 
-obs_dim: 31 # 12 state + 1 next_gate + 6 * gates + 3 * obstacles
+obs_dim: 28 # 12 state + 1 next_gate + 6 * gates + 3 * obstacles
 action_dim: 13
 keypoint_dim: inf
 

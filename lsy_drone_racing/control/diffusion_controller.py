@@ -38,6 +38,7 @@ import hydra
 import dill
 from lsy_drone_racing.control.diffusion.base_workspace import BaseWorkspace
 from lsy_drone_racing.control.diffusion.pytorch_util import dict_apply
+from lsy_drone_racing.control.utils import to_local_obs, to_global_action
 
 
 class Controller(BaseController):
@@ -92,26 +93,40 @@ class Controller(BaseController):
     def compute_control(
         self, obs: dict, info: dict | None = None
     ) -> npt.NDarray[np.floating]:
+        n_actions = 1
         if not len(self.action_buffer):
             if __debug__:
                 state = np.hstack([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
-                actions = self.compute_horizon(obs, 20)
+                actions = self.compute_horizon(obs, 15)[:, :, :n_actions]
 
                 self.state_history.append(state)
                 self.action_history.append(actions)
             else:
                 actions = self.compute_horizon(obs)
 
-            self.action_buffer += [action for action in actions[0, :, :4].T]
+            self.action_buffer += [action for action in actions[0, :, :n_actions].T]
 
         return self.action_buffer.pop(0)
 
+
     def compute_horizon(self, obs: dict, samples=1) -> npt.NDarray[np.floating]:
-        pos = obs['pos']
-        rpy = obs['rpy']
-        vel = obs['vel']
-        body_rates = obs['ang_vel']
-        state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])]).reshape((1, 1, -1))
+        local = True
+        if not local:
+            pos = obs['pos']
+            vel = obs['vel']
+            rpy = obs['rpy']
+            body_rates = obs['ang_vel']
+            state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])]).reshape((1, 1, -1))
+        else:
+            state = to_local_obs(pos=obs['pos'],
+                                 vel=obs['vel'],
+                                 rpy=obs['rpy'],
+                                 ang_vel=obs['ang_vel'],
+                                 obstacles_pos=obs['obstacles_pos'].T,
+                                 gates_pos=obs['gates_pos'].T,
+                                 gates_rpy=obs['gates_rpy'].T,
+                                 target_gate=obs['target_gate'],
+                                 )
 
         state = np.tile(state, (samples, 1, 1))
 
@@ -138,6 +153,9 @@ class Controller(BaseController):
         # to simulate latency
         actions = np_action_dict['action'].swapaxes(1,2)
 
+        if not local:
+            actions = to_global_action(actions, obs['rpy'], obs['pos'])
+
         return actions # (B, S, T)
 
     def episode_reset(self):
@@ -150,7 +168,7 @@ class Controller(BaseController):
         states = np.array(self.state_history)
         actions = np.array(self.action_history)
 
-        np.savez(file, states=states, inputs=actions)
+        np.savez(file, states=states, actions=actions)
 
     def episode_learn(self):
         pass

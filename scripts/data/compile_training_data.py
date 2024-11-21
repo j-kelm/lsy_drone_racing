@@ -6,8 +6,8 @@ from lsy_drone_racing.control.utils import to_local_obs, transform, to_local_act
 hdf_path = "output/merged.hdf5"
 output_path = "output/race_data.npz"
 
-PREDICTION_HORIZON = 32 # 32 # steps, must be smaller than horizon from MPC
-LOCAL_OBSERVATION = False
+PREDICTION_HORIZON = 8 # 32 # steps, must be smaller than horizon from MPC
+LOCAL_OBSERVATION = True
 
 pos_i = slice(0, 3)
 vel_i = slice(3, 6)
@@ -47,7 +47,7 @@ if __name__ == '__main__':
                                 if 'snippet_' in snippet_key:
                                     snippet = point_grp[snippet_key]
                                     # filter bad snippets
-                                    if np.array(snippet['solution_found']).all() and (np.array(snippet['objective']) < 5.0e2).all():
+                                    if np.array(snippet['solution_found']).all() and (np.array(snippet['objective']) < 1e3).all():
                                         # fetch snippet length
                                         snippet_length = np.array(snippet['solution_found']).shape[0]
                                         init_states = np.array(snippet['initial_states'])[:, states_for_input]

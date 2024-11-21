@@ -25,17 +25,18 @@ if __name__ == "__main__":
     with open(path, "r") as file:
         mpc_config = munchify(yaml.safe_load(file))
 
+    with open('config/cluttered.toml', "r") as file:
+        track_config = munchify(toml.load(file))
+
+    mpc_config['ctrl_timestep'] = 1 / track_config.env.freq
+    mpc_config['env_freq'] = track_config.env.freq
+
     f = h5py.File(hdf_path, 'w', libver='latest')
 
     dict_to_group(f, 'config', mpc_config)
 
     for track_i in range(NUM_TRACKS):
         # TODO: Randomize gate, obstacle and starting positions
-        with open('config/multi_modality.toml', "r") as file:
-            track_config = munchify(toml.load(file))
-
-        mpc_config['ctrl_timestep'] = 1 / track_config.env.freq
-        mpc_config['env_freq'] = track_config.env.freq
 
         gates = track_config.env.track.gates
         gates_pos = [gate.pos for gate in gates]

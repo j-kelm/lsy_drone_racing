@@ -115,8 +115,7 @@ class Controller(BaseController):
             draw_segment_of_traj(self.initial_info, self.state_history[-1][0:3], pos, [0, 1, 0, 1])
 
         local_actions = self.model(obs).detach().cpu().numpy()
-        local_actions = local_actions.reshape(13, -1)
-        local_action = local_actions
+        local_action = local_actions.reshape(13, -1)
 
         # Transform action back to global frame
         global_action = to_global_action(local_action, rpy, pos)
