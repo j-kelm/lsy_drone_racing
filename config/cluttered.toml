@@ -22,7 +22,7 @@ gui = false                                       # Enable/disable PyBullet's GU
 
 [sim.disturbances.action]
 type = "GaussianNoise"
-std = 0.001
+std = 0.01
 
 [sim.disturbances.dynamics]
 type = "UniformNoise"

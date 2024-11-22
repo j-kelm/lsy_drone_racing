@@ -6,7 +6,7 @@ from lsy_drone_racing.control.utils import to_local_obs, transform, to_local_act
 hdf_path = "output/merged.hdf5"
 output_path = "output/race_data.npz"
 
-PREDICTION_HORIZON = 8 # 32 # steps, must be smaller than horizon from MPC
+PREDICTION_HORIZON = 32 # 32 # steps, must be smaller than horizon from MPC
 LOCAL_OBSERVATION = True
 
 pos_i = slice(0, 3)

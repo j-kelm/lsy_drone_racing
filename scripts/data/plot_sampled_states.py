@@ -6,7 +6,7 @@ states = np.load("output/race_data.npz", allow_pickle=True)
 outputs = states['action']
 
 rng = default_rng()
-numbers = rng.choice(len(outputs), size=1000, replace=False)
+numbers = rng.choice(len(outputs), size=2500, replace=False)
 
 fig = plt.figure()
 ax = plt.axes(projection="3d")

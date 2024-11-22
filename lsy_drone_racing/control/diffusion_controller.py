@@ -93,7 +93,7 @@ class Controller(BaseController):
     def compute_control(
         self, obs: dict, info: dict | None = None
     ) -> npt.NDarray[np.floating]:
-        n_actions = 1
+        n_actions = 20
         if not len(self.action_buffer):
             if __debug__:
                 state = np.hstack([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
@@ -111,13 +111,7 @@ class Controller(BaseController):
 
     def compute_horizon(self, obs: dict, samples=1) -> npt.NDarray[np.floating]:
         local = True
-        if not local:
-            pos = obs['pos']
-            vel = obs['vel']
-            rpy = obs['rpy']
-            body_rates = obs['ang_vel']
-            state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])]).reshape((1, 1, -1))
-        else:
+        if local:
             state = to_local_obs(pos=obs['pos'],
                                  vel=obs['vel'],
                                  rpy=obs['rpy'],
@@ -127,6 +121,12 @@ class Controller(BaseController):
                                  gates_rpy=obs['gates_rpy'].T,
                                  target_gate=obs['target_gate'],
                                  )
+        else:
+            pos = obs['pos']
+            vel = obs['vel']
+            rpy = obs['rpy']
+            body_rates = obs['ang_vel']
+            state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])]).reshape((1, 1, -1))
 
         state = np.tile(state, (samples, 1, 1))
 
@@ -153,7 +153,7 @@ class Controller(BaseController):
         # to simulate latency
         actions = np_action_dict['action'].swapaxes(1,2)
 
-        if not local:
+        if local:
             actions = to_global_action(actions, obs['rpy'], obs['pos'])
 
         return actions # (B, S, T)

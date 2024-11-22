@@ -11,24 +11,24 @@ r: [
 ]
 
 soft_penalty: 5.0e+3
-horizon_sec: 1.5
+horizon_sec: 1.25
 ratio: 1
 gate_prioritization: 4.0
 max_iter: 300
 wall_time_ratio: 8000.8
-wait_time_ratio: 220.2
+wait_time_ratio: 2200.2
 
 constraints:
   min_thrust: 0.03
   max_thrust: 0.12
   max_thrust_change: 1.0
-  gate_r: 0.15
-  obstacle_r: 0.17
+  gate_r: 0.16
+  obstacle_r: 0.18
   min_z: 0.07
   max_tilt: 80 # degrees
 
 planner:
-  speed: 1.0
+  speed: 1.5
   gate_time_const: 0.1
 
 drone_params:

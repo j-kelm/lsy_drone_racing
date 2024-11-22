@@ -44,8 +44,6 @@ def transform(points, orientations, origins=None):
     return: (N, 3, M)
     """
 
-
-
     assert(len(points) == len(orientations) or len(points) == 1)
     if origins is None:
         origins = np.zeros_like(orientations)
@@ -142,8 +140,11 @@ def to_global_action(actions, rpy, pos):
     ref_pos[:, 0:2] = pos[:, 0:2]
     ref_rot[:, 2:3] = rpy[:, 2:3]
 
+    ref_rot = np.tile(ref_rot, (len(actions), 1))
+    ref_pos = np.tile(ref_pos, (len(actions), 1))
+
     pos_des = deform(actions[:, 0:3], ref_rot)
-    pos_des = deform(pos_des[:, 0:3], np.zeros((1, 3)), ref_pos)
+    pos_des = deform(pos_des[:, 0:3], np.zeros((len(actions), 3)), ref_pos)
     vel_des = deform(actions[:, 3:6], ref_rot)
     acc_des = deform(actions[:, 6:9], ref_rot)
     yaw_des = actions[:, 9:10] + rpy[:, 2:3, None]

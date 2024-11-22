@@ -54,7 +54,7 @@ def obstacle_constraints(obstacle_pos, r=0.15, s=1.5):
     obstacle_center[2] = obstacle_pos[2]/2
     return [vblock_constraint(obstacle_center, obstacle_height, r)]
 
-def gate_constraints(gate_pos, gate_yaw, r=0.15, s=1.6):
+def gate_constraints(gate_pos, gate_yaw, r=0.15, s=1.75):
     # Gate:
     # ----- <- 5
     # I   I <- 3/4

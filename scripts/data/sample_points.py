@@ -49,10 +49,10 @@ if __name__ == "__main__":
         rng = np.random.default_rng(seed=args.seed)
         randomizer_range = np.array([
             0.15, 0.15, 0.15,
-            0.5, 0.5, 0.5,
+            0.2, 0.2, 0.2,
             np.pi/6, np.pi/6, np.pi/6,
-            np.pi/2, np.pi/2, np.pi/2,
-            0.04, 0.04, 0.04, 0.04]) * 2.0
+            np.pi/4, np.pi/4, np.pi/4,
+            0.02, 0.02, 0.02, 0.02]) * 0.5
         lower_state_bound = np.array([
             -3.0, -3.0, -mpc_config['constraints']['min_z'],
             -2.0, -2.0, -2.0,
@@ -61,7 +61,7 @@ if __name__ == "__main__":
             *[mpc_config['constraints']['min_thrust']]*4])
         upper_state_bound = np.array([
             3.0, 3.0, 2.5,
-            2.0, 2.0, 2.0,
+            3.0, 3.0, 3.0,
             np.pi, np.pi, np.inf,
             10.0, 10.0, 10.0,
             *[mpc_config['constraints']['max_thrust']]*4])

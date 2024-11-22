@@ -7,7 +7,6 @@ fig = plt.figure()
 ax = plt.axes(projection="3d")
 
 ax.plot3D(history['states'][:, 0], history['states'][:, 1], history['states'][:, 2])
-# ax.scatter3D(history['states'][:, 0], history['states'][:, 1], history['states'][:, 2])
 
 for i, step in enumerate(history['actions']):
     if not i % 1:
