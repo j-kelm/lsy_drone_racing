@@ -87,39 +87,65 @@ def deform(points, orientations, origins=None):
 
     return transformed
 
-def to_so3(angle):
+def to_so2(angle):
+    """
+    Convert angle into sin, cos
+
+    Args:
+        angle: Angle in radians
+
+    Return:
+        sin and cos of the angle
+    """
     s, c = np.sin(angle), np.cos(angle)
     return np.hstack([s, c])
 
+def from_so2(sc):
+    """
+    Convert sin, cos output into angle
+
+    Args:
+        sc: [sin, cos]
+
+    Returns:
+        The corresponding angle in radians
+    """
+    angle = np.arctan2(sc[:, 0:1, :], sc[:, 1:2, :])
+    return angle
+
 def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate):
+    use_so2 = True
     pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate = np.atleast_2d(pos, vel, rpy, ang_vel, obstacles_pos.T, gates_pos.T, gates_rpy.T, target_gate)
     snippet_length = pos.shape[0]
 
     ref_pos = np.zeros_like(pos)
     ref_rot = np.zeros_like(rpy)
 
-    ref_pos[:, 0:2] = pos[:, 0:2]
+    ref_pos[:, 0:3] = pos[:, 0:3]
     ref_rot[:, 2:3] = rpy[:, 2:3]
 
     vels_obs = transform(vel[:, :, None], ref_rot).reshape((snippet_length, -1))
 
     obstacles_pos_obs = transform(obstacles_pos.T[None, :, :], ref_rot, ref_pos).reshape((snippet_length, -1))
     gates_pos_obs = transform(gates_pos.T[None, :, :], ref_rot, ref_pos).reshape((snippet_length, -1))
-    gates_rpy_obs = transform(gates_rpy.T[None, :, :], ref_rot).reshape((snippet_length, -1))
+    gates_rpy_obs = transform(gates_rpy.T[None, :, :], ref_rot)[:, 2:3, :].reshape((snippet_length, -1))
 
-    obs_states = np.hstack([pos[:, 2:], vels_obs, rpy[:, 0:2], ang_vel])
+    if use_so2:
+        obs_states = np.hstack([pos[:, 2:], vels_obs, to_so2(rpy[:, 0:2]), ang_vel])
+        return np.hstack([obs_states, target_gate, obstacles_pos_obs, gates_pos_obs, to_so2(gates_rpy_obs)])
+    else:
+        obs_states = np.hstack([pos[:, 2:], vels_obs, rpy[:, 0:2], ang_vel])
+        return np.hstack([obs_states, target_gate, obstacles_pos_obs, gates_pos_obs, gates_rpy_obs])
 
-    # transform angles into s, c (see hitchhikers guide to SO(3))
-
-    return np.hstack([obs_states, target_gate, obstacles_pos_obs, gates_pos_obs, gates_rpy_obs])
 
 def to_local_action(actions, rpy, pos):
+    use_so2 = True
     actions, rpy, pos = np.atleast_2d(actions, rpy, pos)
 
     ref_pos = np.zeros_like(pos)
     ref_rot = np.zeros_like(rpy)
 
-    ref_pos[:, 0:2] = pos[:, 0:2]
+    ref_pos[:, 0:3] = pos[:, 0:3]
     ref_rot[:, 2:3] = rpy[:, 2:3]
 
     pos_des = transform(actions[:, 0:3], ref_rot, ref_pos)
@@ -128,16 +154,20 @@ def to_local_action(actions, rpy, pos):
     yaw_des = actions[:, 9:10] - ref_rot[:, 2:3, None]
     body_rates_des = actions[:, 10:13]
 
-    return np.concatenate([pos_des, vel_des, acc_des, yaw_des, body_rates_des], axis=1)
+    if use_so2:
+        return np.concatenate([pos_des, vel_des, acc_des, to_so2(yaw_des), body_rates_des], axis=1)
+    else:
+        return np.concatenate([pos_des, vel_des, acc_des, yaw_des, body_rates_des], axis=1)
 
 def to_global_action(actions, rpy, pos):
+    use_so2 = True
     actions = np.atleast_3d(actions.T).T
     rpy, pos = np.atleast_2d(rpy, pos)
 
     ref_pos = np.zeros_like(pos)
     ref_rot = np.zeros_like(rpy)
 
-    ref_pos[:, 0:2] = pos[:, 0:2]
+    ref_pos[:, 0:3] = pos[:, 0:3]
     ref_rot[:, 2:3] = rpy[:, 2:3]
 
     ref_rot = np.tile(ref_rot, (len(actions), 1))
@@ -147,8 +177,14 @@ def to_global_action(actions, rpy, pos):
     pos_des = deform(pos_des[:, 0:3], np.zeros((len(actions), 3)), ref_pos)
     vel_des = deform(actions[:, 3:6], ref_rot)
     acc_des = deform(actions[:, 6:9], ref_rot)
-    yaw_des = actions[:, 9:10] + rpy[:, 2:3, None]
-    body_rates_des = actions[:, 10:13, :]
+
+    if use_so2:
+        yaw_des = from_so2(actions[:, 9:11]) + rpy[:, 2:3, None]
+        body_rates_des = actions[:, 11:14, :]
+
+    else:
+        yaw_des = actions[:, 9:10] + rpy[:, 2:3, None]
+        body_rates_des = actions[:, 10:13, :]
 
     return np.concatenate([pos_des, vel_des, acc_des, yaw_des, body_rates_des], axis=1)
 

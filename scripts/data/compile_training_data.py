@@ -6,9 +6,6 @@ from lsy_drone_racing.control.utils import to_local_obs, transform, to_local_act
 hdf_path = "output/merged.hdf5"
 output_path = "output/race_data.npz"
 
-PREDICTION_HORIZON = 32 # 32 # steps, must be smaller than horizon from MPC
-LOCAL_OBSERVATION = True
-
 pos_i = slice(0, 3)
 vel_i = slice(3, 6)
 rpy_i = slice(6, 9)
@@ -19,8 +16,11 @@ if __name__ == '__main__':
 
     # input: state (12,) |  gate_idx (1,) | obstacles (3 x N,) | gates (6 x M,)
     # output: actions (13, T)
-    inputs = list()
-    outputs = list()
+    obs = list()
+    actions = list()
+
+    local_obs = list()
+    local_actions = list()
 
     states_for_input = range(12)
     states_for_output = [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14]
@@ -51,53 +51,48 @@ if __name__ == '__main__':
                                         # fetch snippet length
                                         snippet_length = np.array(snippet['solution_found']).shape[0]
                                         init_states = np.array(snippet['initial_states'])[:, states_for_input]
-                                        horizon_outputs = np.array(snippet['y_horizons'])[:, :, :PREDICTION_HORIZON]
-
-                                        if LOCAL_OBSERVATION:  # relative observation
-                                            positions = np.array(snippet['initial_states'])[:, pos_i]
-                                            vels = np.array(snippet['initial_states'])[:, vel_i]
-                                            rpys = np.array(snippet['initial_states'])[:, rpy_i]
-                                            ang_vels = np.array(snippet['initial_states'])[:, ang_vel_i]
+                                        horizon_outputs = np.array(snippet['y_horizons'])
 
 
-                                            # transform actions
-                                            local_action = to_local_action(horizon_outputs, rpys, positions)
-                                            outputs.append(local_action)
-
-                                            # transform observations
-                                            local_obs = to_local_obs(pos=positions,
-                                                                     vel=vels,
-                                                                     rpy=rpys,
-                                                                     ang_vel=ang_vels,
-                                                                     obstacles_pos=obstacles_pos,
-                                                                     gates_pos=gates_pos,
-                                                                     gates_rpy=gates_rpy,
-                                                                     target_gate=gate_index,
-                                                                     )
-                                            inputs.append(local_obs)
+                                        ## local frame
+                                        positions = np.array(snippet['initial_states'])[:, pos_i]
+                                        vels = np.array(snippet['initial_states'])[:, vel_i]
+                                        rpys = np.array(snippet['initial_states'])[:, rpy_i]
+                                        ang_vels = np.array(snippet['initial_states'])[:, ang_vel_i]
 
 
-                                        else:  # absolute observation
-                                            init_states = np.array(snippet['initial_states'])[:, states_for_input]
-                                            gate_index = np.array(point_grp['config/next_gate'])
-                                            obstacles_pos = np.array(track_grp['config/obstacles_pos']).reshape((1, -1))
-                                            gates_pos = np.array(track_grp['config/gates_pos']).reshape((1, -1))
-                                            gates_rpy = np.array(track_grp['config/gates_rpy']).reshape((1, -1))
+                                        # transform actions
+                                        local_action = to_local_action(horizon_outputs, rpys, positions)
+                                        local_actions.append(local_action)
 
-                                            track = np.repeat(np.hstack([obstacles_pos, gates_pos, gates_rpy]),
-                                                              snippet_length, axis=0)
-                                            inputs.append(np.hstack([init_states, gate_index.T, track]))
+                                        # transform observations
+                                        local_ob = to_local_obs(pos=positions,
+                                                                 vel=vels,
+                                                                 rpy=rpys,
+                                                                 ang_vel=ang_vels,
+                                                                 obstacles_pos=obstacles_pos,
+                                                                 gates_pos=gates_pos,
+                                                                 gates_rpy=gates_rpy,
+                                                                 target_gate=gate_index,
+                                                                 )
+                                        local_obs.append(local_ob)
 
-                                            outputs.append(horizon_outputs[:, states_for_output, :PREDICTION_HORIZON])
+                                        ## global frame
+                                        track = np.repeat(np.hstack([obstacles_pos.reshape((1, -1)),
+                                                                     gates_pos.reshape((1, -1)),
+                                                                     gates_rpy.reshape((1, -1))]),
+                                                          snippet_length, axis=0)
+
+                                        obs.append(np.hstack([init_states, gate_index, track]))
+                                        actions.append(horizon_outputs[:, states_for_output, :])
 
 
+    obs = np.concatenate(obs, axis=0)
+    actions = np.concatenate(actions, axis=0)
+    local_obs = np.concatenate(local_obs, axis=0)
+    local_actions = np.concatenate(local_actions, axis=0)
 
-
-    inputs = np.concatenate(inputs, axis=0)
-    outputs = np.concatenate(outputs, axis=0)
-    np.savez_compressed(output_path, obs=inputs, action=outputs)
-
-                                        
+    np.savez_compressed(output_path, obs=obs, local_obs=local_obs, actions=actions, local_actions=local_actions)
 
 
 

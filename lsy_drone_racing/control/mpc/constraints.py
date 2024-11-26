@@ -64,12 +64,12 @@ def gate_constraints(gate_pos, gate_yaw, r=0.15, s=1.75):
     gate_pos = np.array(gate_pos)
 
     constraints = []
-    gate_size = 0.48
+    gate_size = 0.50
 
     # pole 1
     pos = np.zeros(3)
     pos[0:2] = gate_pos[0:2]
-    pos[2] = (gate_pos[2] - gate_size/2)/2
+    pos[2] = (gate_pos[2] - gate_size/2)/2 -0.1
     constraints.append(vblock_constraint(pos, (gate_pos[2] - gate_size / 2), r))
 
     # pole 3/4

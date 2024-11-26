@@ -48,11 +48,11 @@ if __name__ == "__main__":
         # get random generator and seed
         rng = np.random.default_rng(seed=args.seed)
         randomizer_range = np.array([
-            0.15, 0.15, 0.15,
+            0.10, 0.10, 0.10,
             0.2, 0.2, 0.2,
             np.pi/6, np.pi/6, np.pi/6,
             np.pi/4, np.pi/4, np.pi/4,
-            0.02, 0.02, 0.02, 0.02]) * 0.5
+            0.02, 0.02, 0.02, 0.02])
         lower_state_bound = np.array([
             -3.0, -3.0, -mpc_config['constraints']['min_z'],
             -2.0, -2.0, -2.0,

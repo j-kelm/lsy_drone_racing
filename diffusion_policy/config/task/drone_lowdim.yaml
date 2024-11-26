@@ -1,10 +1,12 @@
 name: drone_lowdim
 
-obs_dim: 28 # 12 state + 1 next_gate + 6 * gates + 3 * obstacles
-action_dim: 13
+obs_dim: 34 # 12 state + 1 next_gate + 4 * gates + 3 * obstacles
+action_dim: 14
 keypoint_dim: inf
 
 dataset:
   _target_: diffusion_policy.dataset.drone_lowdim_dataset.DroneLowdimDataset
   zarr_path: output/race_data.npz
+  obs_key: 'local_obs'
+  action_key: 'local_actions'
   horizon: ${horizon}

@@ -34,6 +34,9 @@ import numpy.typing as npt
 # import matplotlib.pyplot as plt
 # from matplotlib.ticker import FormatStrFormatter
 
+import pybullet as p
+from docutils.nodes import reference
+
 from munch import munchify
 import yaml
 from numpy._typing import NDArray
@@ -108,6 +111,11 @@ class Controller(BaseController):
 
         # start precomputing first actions
         self.async_ctrl.put_obs(obs=self.initial_obs, info=self.initial_info, block=False)
+
+        if p.isConnected():
+            for i in range(self.planner.ref.shape[1]-10):
+                if not i % 10:
+                    p.addUserDebugLine(self.planner.ref[0:3, i], self.planner.ref[0:3, i+10], lineColorRGB=[1,0,0])
 
         # wait for first actions to be computed
         self.async_ctrl.wait_tasks()

@@ -27,4 +27,10 @@ class AsyncMPC(AsyncControl):
             'states': states.T,
         }
 
+        # thrust interface
+        # target_c_thrust = outputs[-4:].sum(axis=0)
+        # target_rpy = outputs[9:12]
+
+        # out = {'actions': np.vstack([target_c_thrust, target_rpy]).T}
+
         return out

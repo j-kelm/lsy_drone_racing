@@ -19,6 +19,7 @@ class DroneLowdimDataset(BaseLowdimDataset):
         self.horizon = horizon
 
         self.data = np.load(zarr_path, allow_pickle=True)
+        self.data = {'action': self.data[action_key], 'obs': self.data[self.obs_key]}
         self.data = dict_apply(self.data, torch.from_numpy)
 
         self.data['action'] = self.data['action'][:, :, :self.horizon].swapaxes(1, 2)

@@ -89,11 +89,12 @@ class Controller(BaseController):
 
         self.action_buffer = list()
 
+        self.compute_control(initial_obs, initial_info, n_actions=16)
+
 
     def compute_control(
-        self, obs: dict, info: dict | None = None
+        self, obs: dict, info: dict | None = None, n_actions = 8
     ) -> npt.NDarray[np.floating]:
-        n_actions = 20
         if not len(self.action_buffer):
             if __debug__:
                 state = np.hstack([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
@@ -128,7 +129,14 @@ class Controller(BaseController):
             body_rates = obs['ang_vel']
             state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])]).reshape((1, 1, -1))
 
-        state = np.tile(state, (samples, 1, 1))
+        actions = self.sample_actions(state, samples)
+        if local:
+            actions = to_global_action(actions, obs['rpy'], obs['pos'])
+
+        return actions
+
+    def sample_actions(self, obs, samples=1):
+        state = np.tile(obs, (samples, 1, 1))
 
         # create obs dict
         np_obs_dict = {
@@ -151,12 +159,8 @@ class Controller(BaseController):
 
         # handle latency_steps, we discard the first n_latency_steps actions
         # to simulate latency
-        actions = np_action_dict['action'].swapaxes(1,2)
-
-        if local:
-            actions = to_global_action(actions, obs['rpy'], obs['pos'])
-
-        return actions # (B, S, T)
+        actions = np_action_dict['action'].swapaxes(1, 2)
+        return actions  # (B, S, T)
 
     def episode_reset(self):
         if __debug__:

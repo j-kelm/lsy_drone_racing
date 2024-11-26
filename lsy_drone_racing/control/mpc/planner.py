@@ -77,6 +77,7 @@ class MinsnapPlanner:
 
         # assert max(self.ref[2, :]) < 2.5, "Drone must stay below the ceiling"
         # assert min(self.ref[2, :]) > 0.0, "Drone must stay above the ground"
+        self.ref[2] = np.maximum(0.07, self.ref[2])
 
 
     @staticmethod
