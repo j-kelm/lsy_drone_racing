@@ -81,11 +81,11 @@ class DeltaModel:
         X = cs.vertcat(x, y, z, x_dot, y_dot, z_dot, phi, theta, psi, p_body, q_body, r_body, f1, f2, f3, f4)
 
         # Define inputs.
-        df1 = cs.MX.sym('df1')
-        df2 = cs.MX.sym('df2')
-        df3 = cs.MX.sym('df3')
-        df4 = cs.MX.sym('df4')
-        U = cs.vertcat(df1, df2, df3, df4)
+        f1_dot = cs.MX.sym('df1')
+        f2_dot = cs.MX.sym('df2')
+        f3_dot = cs.MX.sym('df3')
+        f4_dot = cs.MX.sym('df4')
+        U = cs.vertcat(f1_dot, f2_dot, f3_dot, f4_dot)
 
         # From Ch. 2 of Luis, Carlos, and Jérôme Le Ny. 'Design of a trajectory tracking controller for a
         # nanoquadcopter.' arXiv preprint arXiv:1608.05786 (2016).
@@ -103,8 +103,7 @@ class DeltaModel:
         ang_dot = cs.blockcat([[1, cs.sin(phi) * cs.tan(theta), cs.cos(phi) * cs.tan(theta)],
                                 [0, cs.cos(phi), -cs.sin(phi)],
                                 [0, cs.sin(phi) / cs.cos(theta), cs.cos(phi) / cs.cos(theta)]]) @ cs.vertcat(p_body, q_body, r_body)
-        f_dot = cs.vertcat(df1, df2, df3, df4) / self.dt # TODO: Switch to giving simply df instead of delta f
-        X_dot = cs.vertcat(pos_dot, pos_ddot, ang_dot, rate_dot, f_dot)
+        X_dot = cs.vertcat(pos_dot, pos_ddot, ang_dot, rate_dot, U)
 
         Y = cs.vertcat(x, y, z, x_dot, y_dot, z_dot, pos_ddot, phi, theta, psi, p_body, q_body, r_body, ang_dot, f1, f2, f3, f4)
         # Set the equilibrium values for linearizations.

@@ -48,9 +48,9 @@ if __name__ == "__main__":
         # get random generator and seed
         rng = np.random.default_rng(seed=args.seed)
         randomizer_range = np.array([
-            0.15, 0.15, 0.15,
             0.25, 0.25, 0.25,
-            np.pi/6, np.pi/6, np.pi/6,
+            0.25, 0.25, 0.25,
+            np.pi/6, np.pi/6, np.pi/2,
             np.pi/8, np.pi/8, np.pi/8,
             0.02, 0.02, 0.02, 0.02])
         lower_state_bound = np.array([

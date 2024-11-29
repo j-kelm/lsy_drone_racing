@@ -70,32 +70,33 @@ class Controller(BaseController):
     def compute_control(
         self, obs: dict, info: dict | None = None,
     ) -> npt.NDarray[np.floating]:
-        obs['ang_vel'] *= np.pi/180 # TODO: fix
+        obs['ang_vel'] = np.zeros(3) # *= np.pi/180 # TODO: fix
 
-        state = to_local_obs(pos=obs['pos'],
-                             vel=obs['vel'],
-                             rpy=obs['rpy'],
-                             ang_vel=obs['ang_vel'],
-                             obstacles_pos=obs['obstacles_pos'].T,
-                             gates_pos=obs['gates_pos'].T,
-                             gates_rpy=obs['gates_rpy'].T,
-                             target_gate=obs['target_gate'],
-                             )
+        if not len(self.diffusion.action_buffer):
+            state = to_local_obs(pos=obs['pos'],
+                                 vel=obs['vel'],
+                                 rpy=obs['rpy'],
+                                 ang_vel=obs['ang_vel'],
+                                 obstacles_pos=obs['obstacles_pos'].T,
+                                 gates_pos=obs['gates_pos'].T,
+                                 gates_rpy=obs['gates_rpy'].T,
+                                 target_gate=obs['target_gate'],
+                                 )
 
-        t_start = time.perf_counter()
-        diffusion_actions = self.diffusion.compute_horizon(obs, 15)
-        t_diffusion = time.perf_counter()
-        mpc_actions = self.mpc.compute_horizon(obs, info)
-        t_mpc = time.perf_counter()
+            t_start = time.perf_counter()
+            diffusion_actions = self.diffusion.compute_horizon(obs, 15)
+            t_diffusion = time.perf_counter()
+            mpc_actions = self.mpc.compute_horizon(obs, info)
+            t_mpc = time.perf_counter()
 
-        print(f'MPC time: {t_mpc - t_diffusion} Diffusion time: {t_diffusion - t_start}')
+            print(f'MPC time: {t_mpc - t_diffusion} Diffusion time: {t_diffusion - t_start}')
 
-        self.states.append(state)
-        self.mpc_actions.append(mpc_actions)
-        self.diffusion_actions.append(diffusion_actions)
+            self.states.append(state)
+            self.mpc_actions.append(mpc_actions)
+            self.diffusion_actions.append(diffusion_actions)
 
-        # return diffusion_actions[0, :, 2]
-        return mpc_actions[:, 2]
+        return self.diffusion.compute_control(obs, info)
+        # return mpc_actions[:, 2]
 
     def step_callback(
         self,

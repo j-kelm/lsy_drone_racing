@@ -93,16 +93,12 @@ class Controller(BaseController):
 
 
     def compute_control(
-        self, obs: dict, info: dict | None = None, n_actions = 2
+        self, obs: dict, info: dict | None = None, n_actions = 8
     ) -> npt.NDarray[np.floating]:
         obs['ang_vel'] *= np.pi/180 # TODO: fix
         if not len(self.action_buffer):
-            if __debug__:
-                actions = self.compute_horizon(obs, 15)
-            else:
-                actions = self.compute_horizon(obs)
-
-            self.action_buffer += [action for action in actions[0, :, 2:4].T]
+            actions = self.compute_horizon(obs)
+            self.action_buffer += [action for action in actions[0, :, 0:n_actions].T]
 
         action = self.action_buffer.pop(0)
         return action

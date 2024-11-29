@@ -9,10 +9,10 @@ from lsy_drone_racing.control.diffusion_controller import Controller
 if __name__ == "__main__":
     n_samples = 1
 
-    data = np.load("output/race_data.npz", allow_pickle=True)
+    train_data = np.load("output/race_data.npz", allow_pickle=True)
 
     # obs, actions = data['obs'], data['actions']
-    local_obs, local_actions = data['local_obs'], data['local_actions']
+    local_obs, local_actions = train_data['local_obs'], train_data['local_actions']
     print('Loading done :D')
 
     rng = np.random.default_rng()
