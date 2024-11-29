@@ -25,7 +25,7 @@ if __name__ == "__main__":
     with open(path, "r") as file:
         mpc_config = munchify(yaml.safe_load(file))
 
-    with open('config/cluttered.toml', "r") as file:
+    with open('config/multi_modality.toml', "r") as file:
         track_config = munchify(toml.load(file))
 
     mpc_config['ctrl_timestep'] = 1 / track_config.env.freq

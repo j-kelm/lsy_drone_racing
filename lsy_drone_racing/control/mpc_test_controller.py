@@ -30,22 +30,17 @@ from __future__ import annotations  # Python 3.10 type hints
 import numpy as np
 import numpy.typing as npt
 
-# from mpl_toolkits import mplot3d
-# import matplotlib.pyplot as plt
-# from matplotlib.ticker import FormatStrFormatter
-
 import pybullet as p
-from docutils.nodes import reference
 
 from munch import munchify
 import yaml
 from numpy._typing import NDArray
 
 from lsy_drone_racing.control import BaseController
+from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
 
-from lsy_drone_racing.control.mpc.AsyncMPC import AsyncMPC
 
 
 class Controller(BaseController):
@@ -86,39 +81,12 @@ class Controller(BaseController):
                                       speed=mpc_config.planner.speed,
                                       gate_time_constant=mpc_config.planner.gate_time_const,
                                       )
-        self.async_ctrl = AsyncMPC(initial_info=initial_info,initial_obs=initial_obs, mpc_config=mpc_config, daemon=True)
-
-        if 'step' not in self.initial_info:
-            self.initial_info['step'] = -mpc_config.ratio
-        self.initial_info['reference'] = self.planner.ref
-        self.initial_info['gate_prox'] = self.planner.gate_prox
-
-        # compute solutions once with unlimited time to set internal MPC state for a good warm start
-        self.initial_info['step'] = 0
-        self.async_ctrl.ctrl.ctrl.horizon_skip = 0
-        self.async_ctrl.compute_control(self.initial_obs, self.initial_info)
-        self.initial_info['step'] = -mpc_config.ratio
-        self.async_ctrl.ctrl.ctrl.horizon_skip = mpc_config.ratio
-
-        # switch back solver options BEFORE starting the solver worker
-        self.async_ctrl.ctrl.ctrl.setup_optimizer(
-            solver='ipopt',
-            max_iter=mpc_config.max_iter,
-            max_wall_time=self.CTRL_TIMESTEP * mpc_config.ratio * mpc_config.wall_time_ratio,
-        )
-
-        self.async_ctrl.start()
-
-        # start precomputing first actions
-        self.async_ctrl.put_obs(obs=self.initial_obs, info=self.initial_info, block=False)
+        self.mpc_ctrl = MPCControl(initial_info=initial_info,initial_obs=initial_obs, config=mpc_config)
 
         if p.isConnected():
             for i in range(self.planner.ref.shape[1]-10):
                 if not i % 10:
                     p.addUserDebugLine(self.planner.ref[0:3, i], self.planner.ref[0:3, i+10], lineColorRGB=[1,0,0])
-
-        # wait for first actions to be computed
-        self.async_ctrl.wait_tasks()
 
 
     def compute_control(
@@ -138,25 +106,32 @@ class Controller(BaseController):
         Returns:
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
+        obs['ang_vel'] *= np.pi/180
+        actions = self.compute_horizon(obs, info)
 
+        return actions[:, 2]
+
+    def compute_horizon(self, obs: dict, info: dict):
         info['step'] = self._tick
         info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox
 
-        # set funky body_rate obs to zero (good guesstimate)
-        obs['ang_vel'] = np.zeros(3)  # TODO: fix!
+        obs = np.concatenate([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
+        inputs, states, outputs = self.mpc_ctrl.compute_control(obs, info['reference'], info)
 
-        # only put new obs and retrieve action to minimize control delay
-        self.async_ctrl.put_obs(obs, info, block=False)
+        target_pos = outputs[:3]
+        target_vel = outputs[3:6]
+        target_acc = outputs[6:9]
+        target_yaw = outputs[11:12]
+        target_body_rates = outputs[12:15]
 
-        action, step_idx = self.async_ctrl.get_action(block=True, timeout=self.CTRL_TIMESTEP * self.config.wait_time_ratio)
-        assert self._tick == step_idx, f'Action was provided for step {step_idx}, should be {self._tick}'
+        actions = np.vstack([target_pos, target_vel, target_acc, target_yaw, target_body_rates])
 
-        return action
+        return actions
 
     def episode_reset(self):
         print('episode_reset')
-        self._tick = 0
+        self._tick = 1
 
     def step_callback(
         self,

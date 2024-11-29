@@ -72,7 +72,7 @@ class Controller(BaseController):
 
 
     def compute_control(
-        self, obs: npt.NDArray[np.floating], info: dict | None = None
+        self, obs: dict, info: dict | None = None
     ) -> npt.NDarray[np.floating]:
         """Compute the next desired position and orientation of the drone.
 
@@ -89,43 +89,51 @@ class Controller(BaseController):
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
 
-        pos = obs['pos']
-        rpy = obs['rpy']
-        vel = obs['vel']
-        ang_vel = obs['ang_vel']
-        gate_index = info['target_gate']
-        obstacles_pos = np.hstack(info['obstacles.pos'])
-        gates_pos = np.hstack(info['gates.pos'])
-        gates_rpy = np.hstack(info['gates.rpy'])
+        if __debug__:
+            state = np.hstack([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
+            actions = self.compute_horizon(obs)
 
-        # Transform observation into local frame (h, vel, rp, body_rates)
-        local_obs = to_local_obs(pos=pos,
-                                 vel=vel,
-                                 rpy=rpy,
-                                 ang_vel=ang_vel,
-                                 obstacles_pos=obstacles_pos,
-                                 gates_pos=gates_pos,
-                                 gates_rpy=gates_rpy,
-                                 target_gate=gate_index,
+            self.state_history.append(state)
+            self.action_history.append(actions)
+        else:
+            actions = self.compute_horizon(obs)
+
+        return actions[:, 0]
+
+    def compute_horizon(self, obs: dict) -> npt.NDarray[np.floating]:
+        local = True
+        if local:
+            state = to_local_obs(pos=obs['pos'],
+                                 vel=obs['vel'],
+                                 rpy=obs['rpy'],
+                                 ang_vel=obs['ang_vel'],
+                                 obstacles_pos=obs['obstacles_pos'].T,
+                                 gates_pos=obs['gates_pos'].T,
+                                 gates_rpy=obs['gates_rpy'].T,
+                                 target_gate=obs['target_gate'],
                                  )
+        else:
+            pos = obs['pos']
+            vel = obs['vel']
+            rpy = obs['rpy']
+            body_rates = obs['ang_vel']
+            state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])]).reshape((1, 1, -1))
 
-        obs = torch.tensor(local_obs, device=self.device, dtype=torch.float32)
+        state = torch.tensor(state, device=self.device, dtype=torch.float32)
 
-        if len(self.state_history):
-            draw_segment_of_traj(self.initial_info, self.state_history[-1][0:3], pos, [0, 1, 0, 1])
+        with torch.no_grad():
+            actions = self.model(state).detach().cpu().numpy()
+        actions = actions.reshape(14, -1)
 
-        local_actions = self.model(obs).detach().cpu().numpy()
-        local_action = local_actions.reshape(13, -1)
+        if local:
+            actions = to_global_action(actions, obs['rpy'], obs['pos'])
 
-        # Transform action back to global frame
-        global_action = to_global_action(local_action, rpy, pos)
-        back_to_local = to_local_action(global_action, rpy, pos)
+            back_to_local = to_local_action(actions, obs['rpy'], obs['pos'])
 
-        diff = local_action - back_to_local
-        print(diff)
+            diff = actions - back_to_local
+            print(diff)
 
-
-        return global_action[0, :, 0]
+        return actions[:, 0]
 
     def episode_reset(self):
         self.action_history = []

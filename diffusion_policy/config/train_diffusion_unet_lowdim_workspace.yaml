@@ -11,9 +11,9 @@ keypoint_dim: ${task.keypoint_dim}
 task_name: ${task.name}
 exp_name: "default"
 
-horizon: 16
+horizon: 8
 n_obs_steps: 1
-n_action_steps: 16
+n_action_steps: 8
 n_latency_steps: 0
 past_action_visible: False
 keypoint_visible_rate: 1.0
@@ -30,8 +30,8 @@ policy:
     local_cond_dim: "${eval: ${task.obs_dim} if ${obs_as_local_cond} else None}"
     global_cond_dim: "${eval: ${task.obs_dim}*${n_obs_steps} if ${obs_as_global_cond} else None}"
     diffusion_step_embed_dim: 256
-    down_dims: [256, 512, 1024]
-    kernel_size: 5
+    down_dims: [128, 256, 512]  # [256, 512, 1024]
+    kernel_size: 3
     n_groups: 8
     cond_predict_scale: True
   
@@ -68,7 +68,7 @@ ema:
   max_value: 0.9999
 
 dataloader:
-  batch_size: 512 # 256
+  batch_size: 256 # 256
   num_workers: 1
   shuffle: True
   pin_memory: True
@@ -96,7 +96,7 @@ training:
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 500 # actual steps, not episodes
-  num_epochs: 50
+  num_epochs: 75
   gradient_accumulate_every: 1
   use_ema: True
   # training loop control

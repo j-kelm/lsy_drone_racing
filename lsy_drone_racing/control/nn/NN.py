@@ -13,11 +13,11 @@ inputs = torch.tensor(dataset['obs'], dtype=torch.float32)
 outputs = torch.tensor(dataset['action'], dtype=torch.float32)
 dataset = torch.utils.data.TensorDataset(inputs, outputs)
 
-train_set, val_set = torch.utils.data.random_split(dataset, (0.8, 0.2))
+train_set, val_set = torch.utils.data.random_split(dataset, (0.85, 0.15))
 train_dataloader = DataLoader(train_set, batch_size=batch_size)
 test_dataloader = DataLoader(val_set, batch_size=batch_size)
 
-model = NeuralNetwork(19, hidden_size=250).to(device)
+model = NeuralNetwork(23, hidden_size=250).to(device)
 
 loss_fn = torch.nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)

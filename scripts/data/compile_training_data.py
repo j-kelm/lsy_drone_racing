@@ -6,6 +6,8 @@ from lsy_drone_racing.control.utils import to_local_obs, transform, to_local_act
 hdf_path = "output/merged.hdf5"
 output_path = "output/race_data.npz"
 
+PREDICTION_HORIZON = 32
+
 pos_i = slice(0, 3)
 vel_i = slice(3, 6)
 rpy_i = slice(6, 9)
@@ -25,7 +27,7 @@ if __name__ == '__main__':
     states_for_input = range(12)
     states_for_output = [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14]
 
-    # loop over hdf5 leafs in a very "efficient" manner
+    # loop over hdf5 leafs (very "efficient")
     for track_key in in_file:
         if 'track_' in track_key:
             track_grp = in_file[track_key]
@@ -51,7 +53,7 @@ if __name__ == '__main__':
                                         # fetch snippet length
                                         snippet_length = np.array(snippet['solution_found']).shape[0]
                                         init_states = np.array(snippet['initial_states'])[:, states_for_input]
-                                        horizon_outputs = np.array(snippet['y_horizons'])
+                                        horizon_outputs = np.array(snippet['y_horizons'])[:, :, :PREDICTION_HORIZON]
 
 
                                         ## local frame
@@ -86,6 +88,7 @@ if __name__ == '__main__':
                                         obs.append(np.hstack([init_states, gate_index, track]))
                                         actions.append(horizon_outputs[:, states_for_output, :])
 
+    assert len(obs) == len(actions) == len(local_obs) == len(local_actions)
 
     obs = np.concatenate(obs, axis=0)
     actions = np.concatenate(actions, axis=0)

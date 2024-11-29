@@ -1,6 +1,6 @@
 name: drone_lowdim
 
-obs_dim: 34 # 12 state + 1 next_gate + 4 * gates + 3 * obstacles
+obs_dim: 23 # 11 state + 1 next_gate + 5 * gates + 3 * obstacles
 action_dim: 14
 keypoint_dim: inf
 
@@ -10,3 +10,4 @@ dataset:
   obs_key: 'local_obs'
   action_key: 'local_actions'
   horizon: ${horizon}
+  val_percentage: 0.15

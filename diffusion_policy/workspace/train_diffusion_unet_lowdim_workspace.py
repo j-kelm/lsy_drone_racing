@@ -73,14 +73,12 @@ class TrainDiffusionUnetLowdimWorkspace(BaseWorkspace):
         dataset: BaseLowdimDataset
         dataset = hydra.utils.instantiate(cfg.task.dataset)
         assert isinstance(dataset, BaseLowdimDataset)
+        train_dataloader = DataLoader(dataset, **cfg.dataloader)
         normalizer = dataset.get_normalizer()
 
-        train_size = round(0.85 * len(dataset))
-        val_size = len(dataset) - train_size
-
-        train_set, val_set = torch.utils.data.random_split(dataset, (train_size, val_size))
-        train_dataloader = DataLoader(train_set, **cfg.dataloader)
-        val_dataloader = DataLoader(val_set, **cfg.val_dataloader)
+        # configure validation dataset
+        val_dataset = dataset.get_validation_dataset()
+        val_dataloader = DataLoader(val_dataset, **cfg.val_dataloader)
 
         self.model.set_normalizer(normalizer)
         if cfg.training.use_ema:

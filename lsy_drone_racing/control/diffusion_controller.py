@@ -89,25 +89,23 @@ class Controller(BaseController):
 
         self.action_buffer = list()
 
-        self.compute_control(initial_obs, initial_info, n_actions=16)
+        # self.compute_control(initial_obs, initial_info, n_actions=16)
 
 
     def compute_control(
-        self, obs: dict, info: dict | None = None, n_actions = 8
+        self, obs: dict, info: dict | None = None, n_actions = 2
     ) -> npt.NDarray[np.floating]:
+        obs['ang_vel'] *= np.pi/180 # TODO: fix
         if not len(self.action_buffer):
             if __debug__:
-                state = np.hstack([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
-                actions = self.compute_horizon(obs, 15)[:, :, :n_actions]
-
-                self.state_history.append(state)
-                self.action_history.append(actions)
+                actions = self.compute_horizon(obs, 15)
             else:
                 actions = self.compute_horizon(obs)
 
-            self.action_buffer += [action for action in actions[0, :, :n_actions].T]
+            self.action_buffer += [action for action in actions[0, :, 2:4].T]
 
-        return self.action_buffer.pop(0)
+        action = self.action_buffer.pop(0)
+        return action
 
 
     def compute_horizon(self, obs: dict, samples=1) -> npt.NDarray[np.floating]:
@@ -163,16 +161,7 @@ class Controller(BaseController):
         return actions  # (B, S, T)
 
     def episode_reset(self):
-        if __debug__:
-            self.save_episode("output/logs/sim_diffusion.npz")
-        self.action_history = []
-        self.state_history = []
-
-    def save_episode(self, file):
-        states = np.array(self.state_history)
-        actions = np.array(self.action_history)
-
-        np.savez(file, states=states, actions=actions)
+        pass
 
     def episode_learn(self):
         pass

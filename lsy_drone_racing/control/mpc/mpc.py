@@ -186,7 +186,7 @@ class MPC:
         opti.minimize(cost)
 
         # Create solver
-        jit_options = {"flags": ["-Ofast", "-march=native"], "verbose": True}
+        jit_options = {"flags": ["-O0", "-march=native"], "verbose": True}
 
         opts = {'expand': True,
                 'error_on_fail': False,

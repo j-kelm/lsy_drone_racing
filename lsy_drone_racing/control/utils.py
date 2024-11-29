@@ -95,7 +95,7 @@ def to_so2(angle):
         angle: Angle in radians
 
     Return:
-        sin and cos of the angle
+        sin and cos of the angle. For multiple angles, the output is [s, s , ..., c, c, ...]
     """
     s, c = np.sin(angle), np.cos(angle)
     return np.hstack([s, c])
@@ -115,6 +115,7 @@ def from_so2(sc):
 
 def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate):
     use_so2 = True
+
     pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate = np.atleast_2d(pos, vel, rpy, ang_vel, obstacles_pos.T, gates_pos.T, gates_rpy.T, target_gate)
     snippet_length = pos.shape[0]
 
@@ -132,10 +133,11 @@ def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, ta
 
     if use_so2:
         obs_states = np.hstack([pos[:, 2:], vels_obs, to_so2(rpy[:, 0:2]), ang_vel])
-        return np.hstack([obs_states, target_gate, obstacles_pos_obs, gates_pos_obs, to_so2(gates_rpy_obs)])
+        gates_rpy_obs = to_so2(gates_rpy_obs)
     else:
         obs_states = np.hstack([pos[:, 2:], vels_obs, rpy[:, 0:2], ang_vel])
-        return np.hstack([obs_states, target_gate, obstacles_pos_obs, gates_pos_obs, gates_rpy_obs])
+
+    return np.hstack([obs_states, target_gate, obstacles_pos_obs, gates_pos_obs, gates_rpy_obs])
 
 
 def to_local_action(actions, rpy, pos):
