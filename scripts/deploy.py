@@ -60,8 +60,11 @@ def main(config: str = "level3.toml", controller: str | None = None):
             obs = next_obs
             if terminated or truncated:
                 break
-            if dt := (time.perf_counter() - t_loop) < (1 / config.env.freq):
-                time.sleep(config.env.freq - dt)  # Maintain the control loop frequency
+            if (dt := (time.perf_counter() - t_loop)) < (1 / config.env.freq):
+                time.sleep(1 / config.env.freq - dt)
+            else:
+                exc = dt - 1 / config.env.freq
+                logger.warning(f"Controller execution time exceeded loop frequency by {exc:.3f}s.")
         ep_time = time.perf_counter() - start_time
         controller.episode_callback()
         logger.info(
