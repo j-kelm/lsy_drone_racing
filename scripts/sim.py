@@ -60,12 +60,14 @@ def simulate(
     controller_cls = load_controller(controller_path)  # This returns a class, not an instance
     # Create the racing environment
     env: DroneRacingEnv = gymnasium.make(env_id or config.env.id, config=config)
+    env.max_episode_steps = config.env.max_steps
 
     ep_times = []
     gui_timer = None
     for _ in range(n_runs):  # Run n_runs episodes with the controller
         done = False
         obs, info = env.reset()
+        info['run_id'] = _
         controller: BaseController = controller_cls(obs, info)
         if gui:
             gui_timer = update_gui_timer(0.0, env.unwrapped.sim.pyb_client, gui_timer)
@@ -98,7 +100,7 @@ def simulate(
 
     # Close the environment
     env.close()
-    controller.close()
+
     return ep_times
 
 

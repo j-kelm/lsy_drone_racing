@@ -83,17 +83,18 @@ class Controller(BaseController):
                                  target_gate=obs['target_gate'],
                                  )
 
-            t_start = time.perf_counter()
-            diffusion_actions = self.diffusion.compute_horizon(obs, 15)
-            t_diffusion = time.perf_counter()
-            mpc_actions = self.mpc.compute_horizon(obs, info)
-            t_mpc = time.perf_counter()
+            if not len(self.diffusion.action_buffer):
+                t_start = time.perf_counter()
+                diffusion_actions = self.diffusion.compute_horizon(obs, 10)
+                t_diffusion = time.perf_counter()
+                mpc_actions = self.mpc.compute_horizon(obs, info)
+                t_mpc = time.perf_counter()
 
-            print(f'MPC time: {t_mpc - t_diffusion} Diffusion time: {t_diffusion - t_start}')
+                print(f'MPC time: {t_mpc - t_diffusion} Diffusion time: {t_diffusion - t_start}')
 
-            self.states.append(state)
-            self.mpc_actions.append(mpc_actions)
-            self.diffusion_actions.append(diffusion_actions)
+                self.states.append(state)
+                self.mpc_actions.append(mpc_actions)
+                self.diffusion_actions.append(diffusion_actions)
 
         return self.diffusion.compute_control(obs, info)
         # return mpc_actions[:, 2]

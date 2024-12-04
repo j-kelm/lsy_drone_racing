@@ -32,6 +32,7 @@ if __name__ == "__main__":
     parser.add_argument("--out", "-o", help="Output path.", type=str)
     parser.add_argument("--runs", "-r", help="Amount of randomized initial states sampled for each reference step.", type=int, default=1)
     parser.add_argument("--steps" "-n", help="Steps to sample from each randomized initial state.", type=int, default=10)
+    # parser.add_argument("--goal", "-g", help="Index of the last goal to be reached", type=int, default=-1)
 
     args = parser.parse_args()
 
@@ -133,6 +134,8 @@ if __name__ == "__main__":
                     # ndarray (steps, states, horizon + 1)
                     'y_horizons': np.array(ctrl.ctrl.results_dict['horizon_outputs']),  # ndarray (steps, outputs, horizon)
                     'u_horizons': np.array(ctrl.ctrl.results_dict['horizon_inputs']),  # ndarray (steps, inputs, horizon)
+                    'state_slack': np.array(ctrl.ctrl.results_dict['horizon_state_slack']),
+                    'input_slack': np.array(ctrl.ctrl.results_dict['horizon_input_slack']),
                     'ref_horizons': np.array(ctrl.ctrl.results_dict['horizon_references']),
                     # ndarray (steps, states, horizon + 1)
                     'initial_states': np.array(ctrl.ctrl.results_dict['horizon_states'])[:, :, 0],  # ndarray (states, steps)

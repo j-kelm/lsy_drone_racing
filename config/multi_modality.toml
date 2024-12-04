@@ -4,7 +4,7 @@
 # | :-----------------: | :-----------------------: | :-------------------------: | :--------------------: | :---------------: |
 # | `level3.toml`       | **Yes**                   | **Yes**                     | **Yes**                | Robustness        |
 [controller]
-file = "debug_controller.py" # Put your controller file name here. Specifying a controller as argument to scripts will override this setting. Controllers are located in `lsy_drone_racing/control/`
+file = "diffusion_controller.py" # Put your controller file name here. Specifying a controller as argument to scripts will override this setting. Controllers are located in `lsy_drone_racing/control/`
 
 [sim]
 # Physics options:
@@ -36,6 +36,7 @@ seed = 1337           # Random seed
 freq = 50             # Frequency of the environment's step function, in Hz
 symbolic = false      # Whether to include symbolic expressions in the info dict. Note: This can interfere with multiprocessing! If you want to parallelize your training, set this to false.
 sensor_range = 0.45   # Range at which the exact location of gates and obstacles become visible to the drone. Objects that are not in the drone's sensor range report their nominal position.
+max_steps = 300
 
 [env.track]
 # Tall gates: 1.0m height. Short gates: 0.525m height. Height is measured from the ground to the

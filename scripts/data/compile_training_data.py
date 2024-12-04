@@ -7,6 +7,8 @@ hdf_path = "output/merged.hdf5"
 output_path = "output/race_data.npz"
 
 PREDICTION_HORIZON = 32
+LAST_GATE_INDEX = 0
+MAX_SNIPPET_LENGTH = 30
 
 pos_i = slice(0, 3)
 vel_i = slice(3, 6)
@@ -43,26 +45,41 @@ if __name__ == '__main__':
                         if 'point_' in point_key:
                             point_grp = worker_grp[point_key]
 
-                            gate_index = np.array(point_grp['config/next_gate']).T
+                            gate_index = np.array(point_grp['config/next_gate']).T[:MAX_SNIPPET_LENGTH]
+
+                            if gate_index[0] > LAST_GATE_INDEX:
+                                continue
 
                             for snippet_key in point_grp:
                                 if 'snippet_' in snippet_key:
                                     snippet = point_grp[snippet_key]
                                     # filter bad snippets
-                                    if np.array(snippet['solution_found']).all() and (np.array(snippet['objective']) < 1e3).all():
-                                        # fetch snippet length
-                                        snippet_length = np.array(snippet['solution_found']).shape[0]
-                                        init_states = np.array(snippet['initial_states'])[:, states_for_input]
-                                        horizon_outputs = np.array(snippet['y_horizons'])[:, :, :PREDICTION_HORIZON]
+                                    if not np.array(snippet['solution_found']).all():
+                                        print('No solution')
+                                        continue
+                                    elif (np.array(snippet['objective']) > 1e3).any():
+                                        print('Bad objective')
+                                        continue
+                                    elif (np.array(snippet['state_slack']) > 5e-2).any():
+                                        print('Bad state slack')
+                                        continue
+                                    elif (np.array(snippet['input_slack']) > 5e-2).any():
+                                        print('Bad input slack')
+                                        continue
+                                    else:
+                                        # fetch snippet
 
+
+                                        init_states = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, states_for_input]
+                                        horizon_outputs = np.array(snippet['y_horizons'])[:MAX_SNIPPET_LENGTH, :, :PREDICTION_HORIZON]
+                                        positions = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, pos_i]
+                                        vels = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, vel_i]
+                                        rpys = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, rpy_i]
+                                        ang_vels = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, ang_vel_i]
+
+                                        snippet_length = init_states.shape[0]
 
                                         ## local frame
-                                        positions = np.array(snippet['initial_states'])[:, pos_i]
-                                        vels = np.array(snippet['initial_states'])[:, vel_i]
-                                        rpys = np.array(snippet['initial_states'])[:, rpy_i]
-                                        ang_vels = np.array(snippet['initial_states'])[:, ang_vel_i]
-
-
                                         # transform actions
                                         local_action = to_local_action(horizon_outputs, rpys, positions)
                                         local_actions.append(local_action)

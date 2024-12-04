@@ -61,8 +61,8 @@ class Controller(BaseController):
         self.initial_obs = initial_obs
         self.initial_info = initial_info
 
-        self.n_obs_steps = 1
-        self.n_latency_steps = 0
+        # self.n_obs_steps = 1
+        # self.n_latency_steps = 0
 
         self.device = torch.device('cuda:0')
         checkpoint = 'models/diffusion/latest.ckpt'
@@ -89,20 +89,22 @@ class Controller(BaseController):
 
         self.action_buffer = list()
 
-        # self.compute_control(initial_obs, initial_info, n_actions=16)
+        torch.manual_seed(initial_info['run_id'])
+
+        # self.compute_control(initial_obs, initial_info, n_actions=32)
 
 
     def compute_control(
-        self, obs: dict, info: dict | None = None, n_actions = 8
+        self, obs: dict, info: dict | None = None, n_actions = 16
+
     ) -> npt.NDarray[np.floating]:
         obs['ang_vel'] *= np.pi/180 # TODO: fix
         if not len(self.action_buffer):
             actions = self.compute_horizon(obs)
-            self.action_buffer += [action for action in actions[0, :, 0:n_actions].T]
+            self.action_buffer += [action for action in actions[0, :, :n_actions].T]
 
         action = self.action_buffer.pop(0)
         return action
-
 
     def compute_horizon(self, obs: dict, samples=1) -> npt.NDarray[np.floating]:
         local = True

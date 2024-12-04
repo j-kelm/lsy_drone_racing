@@ -2,10 +2,12 @@ import torch
 
 # Define model
 class NeuralNetwork(torch.nn.Module):
-    def __init__(self, input_size, hidden_size = 90, device='cpu'):
+    def __init__(self, input_size, hidden_size = 200, device='cpu'):
         super().__init__()
         self.linear_relu_stack = torch.nn.Sequential(
             torch.nn.Linear(input_size, hidden_size),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_size, hidden_size),
             torch.nn.ReLU(),
             torch.nn.Linear(hidden_size, hidden_size),
             torch.nn.ReLU(),

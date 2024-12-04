@@ -214,6 +214,8 @@ class MPC:
             'cost': cost,
             'q': q,
             'r': r,
+            'state_slack': state_slack,
+            'input_slack': input_slack,
         }
 
 
@@ -244,6 +246,8 @@ class MPC:
         x_ref = opti_dict['x_ref']  # reference state/trajectory
         q = opti_dict['q']  # time dependant state cost matrix
         r = opti_dict['r']  # time dependant input cost matrix
+        input_slack= opti_dict['input_slack']
+        state_slack = opti_dict['state_slack']
 
         # Assign the initial state.
         opti.set_value(x_init, obs)
@@ -302,6 +306,7 @@ class MPC:
         try:
             sol = opti.solve()
             x_val, u_val = sol.value(x_var), sol.value(u_var)
+            input_slack_val, state_slack_val = sol.value(input_slack), sol.value(state_slack)
         except RuntimeError as e:
             status = opti.return_status()
             if status == 'NonIpopt_Exception_Thrown':
@@ -309,17 +314,21 @@ class MPC:
             else:
                 print(colored(f'Infeasible MPC Problem: {status}', 'red'))
                 x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
+                input_slack_val, state_slack_val = opti.debug.value(input_slack), opti.debug.value(state_slack)
+
 
         self.x_prev = x_val
         self.u_prev = u_val
 
-        y = np.array(self.model.g_func(x=self.x_prev[:, 1:],
+        y = np.array(self.model.g_func(x=self.x_prev[:, 1:], # TODO: Check if this 1 is actually a good idea
                                        u=self.u_prev)['g'])
 
         if self.logs:
             stats = opti.stats()
             self.results_dict['horizon_states'].append(deepcopy(self.x_prev))
             self.results_dict['horizon_inputs'].append(deepcopy(self.u_prev))
+            self.results_dict['horizon_state_slack'].append(deepcopy(state_slack_val))
+            self.results_dict['horizon_input_slack'].append(deepcopy(input_slack_val))
             self.results_dict['horizon_outputs'].append(deepcopy(y))
             self.results_dict['horizon_references'].append(deepcopy(goal_states))
             self.results_dict['t_wall'].append(stats['t_wall_total'])
@@ -364,6 +373,8 @@ class MPC:
                              'action': [],
                              'horizon_inputs': [],
                              'horizon_states': [],
+                             'horizon_input_slack': [],
+                             'horizon_state_slack': [],
                              'horizon_outputs': [],
                              'horizon_references': [],
                              'solution_found': [],

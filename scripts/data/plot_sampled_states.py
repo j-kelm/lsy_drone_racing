@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.random import default_rng
 
-HORIZON = 3
+HORIZON = 8
 
 states = np.load("output/race_data.npz", allow_pickle=True)
 outputs = states['actions']
 
 rng = default_rng()
-numbers = rng.choice(len(outputs), size=2500, replace=False)
+numbers = rng.choice(len(outputs), size=5000, replace=False)
 
 fig = plt.figure()
 ax = plt.axes(projection="3d")

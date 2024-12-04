@@ -90,6 +90,8 @@ if __name__ == "__main__":
             'x_horizons': np.array(ctrl.ctrl.results_dict['horizon_states']), # ndarray (steps, states, horizon + 1)
             'y_horizons': np.array(ctrl.ctrl.results_dict['horizon_outputs']),  # ndarray (steps, outputs, horizon)
             'u_horizons': np.array(ctrl.ctrl.results_dict['horizon_inputs']),  # ndarray (steps, inputs, horizon)
+            'state_slack': np.array(ctrl.ctrl.results_dict['horizon_state_slack']),
+            'input_slack': np.array(ctrl.ctrl.results_dict['horizon_input_slack']),
             'ref_horizons': np.array(ctrl.ctrl.results_dict['horizon_references']), # ndarray (steps, states, horizon + 1)
             'initial_states': np.array(ctrl.ctrl.results_dict['horizon_states'])[:, :, 0],  # ndarray (states, steps)
             't_wall': np.array(ctrl.ctrl.results_dict['t_wall']),

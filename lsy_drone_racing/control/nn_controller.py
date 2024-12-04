@@ -62,7 +62,7 @@ class Controller(BaseController):
 
         self.device = 'cuda:0'
 
-        self.model = NeuralNetwork(19, hidden_size=250)
+        self.model = NeuralNetwork(23, hidden_size=300)
         self.model.to(self.device)
         self.model.load_state_dict(torch.load("output/modality.pth", weights_only=True))
         self.model.eval()
@@ -98,7 +98,7 @@ class Controller(BaseController):
         else:
             actions = self.compute_horizon(obs)
 
-        return actions[:, 0]
+        return actions[:, 1]
 
     def compute_horizon(self, obs: dict) -> npt.NDarray[np.floating]:
         local = True
@@ -128,12 +128,7 @@ class Controller(BaseController):
         if local:
             actions = to_global_action(actions, obs['rpy'], obs['pos'])
 
-            back_to_local = to_local_action(actions, obs['rpy'], obs['pos'])
-
-            diff = actions - back_to_local
-            print(diff)
-
-        return actions[:, 0]
+        return actions[0]
 
     def episode_reset(self):
         self.action_history = []
