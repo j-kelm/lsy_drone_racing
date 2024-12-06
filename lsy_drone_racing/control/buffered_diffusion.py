@@ -32,7 +32,7 @@ import numpy.typing as npt
 
 import torch
 
-from lsy_drone_racing.control import BaseController
+from lsy_drone_racing.control.BufferedControl import BufferedController
 
 import hydra
 import dill
@@ -41,7 +41,7 @@ from lsy_drone_racing.control.diffusion.pytorch_util import dict_apply
 from lsy_drone_racing.control.utils import to_local_obs, to_global_action
 
 
-class Controller(BaseController):
+class Controller(BufferedController):
     """Template controller class."""
 
     def __init__(self, initial_obs: dict, initial_info: dict):
@@ -57,12 +57,8 @@ class Controller(BaseController):
                 observation space for details.
             initial_info: Additional environment information from the reset.
         """
-        super().__init__(initial_obs, initial_info)
         self.initial_obs = initial_obs
         self.initial_info = initial_info
-
-        # self.n_obs_steps = 1
-        # self.n_latency_steps = 0
 
         self.device = torch.device('cuda:0')
         checkpoint = 'models/diffusion/latest.ckpt'
@@ -91,22 +87,10 @@ class Controller(BaseController):
 
         torch.manual_seed(initial_info['run_id'])
 
-        # self.compute_control(initial_obs, initial_info, n_actions=32)
+        # only call once fully initialized
+        super().__init__(initial_obs, initial_info, 6, 32, 0)
 
-
-    def compute_control(
-        self, obs: dict, info: dict | None = None, n_actions = 16
-
-    ) -> npt.NDarray[np.floating]:
-        obs['ang_vel'] *= np.pi/180 # TODO: fix
-        if not len(self.action_buffer):
-            actions = self.compute_horizon(obs)
-            self.action_buffer += [action for action in actions[0, :, :n_actions].T]
-
-        action = self.action_buffer.pop(0)
-        return action
-
-    def compute_horizon(self, obs: dict, samples=1) -> npt.NDarray[np.floating]:
+    def compute_horizon(self, obs: dict, info: dict, samples=1) -> npt.NDArray[np.floating]:
         local = True
         if local:
             state = to_local_obs(pos=obs['pos'],
@@ -165,4 +149,4 @@ class Controller(BaseController):
         pass
 
     def reset(self):
-        pass
+        super().reset()

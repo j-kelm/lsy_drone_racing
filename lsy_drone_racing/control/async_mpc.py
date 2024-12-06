@@ -30,16 +30,10 @@ from __future__ import annotations  # Python 3.10 type hints
 import numpy as np
 import numpy.typing as npt
 
-# from mpl_toolkits import mplot3d
-# import matplotlib.pyplot as plt
-# from matplotlib.ticker import FormatStrFormatter
-
 import pybullet as p
-from docutils.nodes import reference
 
 from munch import munchify
 import yaml
-from numpy._typing import NDArray
 
 from lsy_drone_racing.control import BaseController
 
@@ -123,7 +117,7 @@ class Controller(BaseController):
 
     def compute_control(
         self, obs: dict, info: dict | None = None
-    ) -> npt.NDarray[np.floating]:
+    ) -> npt.NDArray[np.floating]:
         """Compute the next desired position and orientation of the drone.
 
         INSTRUCTIONS:
@@ -160,8 +154,8 @@ class Controller(BaseController):
 
     def step_callback(
         self,
-        action: NDArray[np.floating],
-        obs: NDArray[np.floating],
+        action: npt.NDArray[np.floating],
+        obs: npt.NDArray[np.floating],
         reward: float,
         terminated: bool,
         truncated: bool,

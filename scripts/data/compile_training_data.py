@@ -1,7 +1,8 @@
 import h5py
 import numpy as np
 
-from lsy_drone_racing.control.utils import to_local_obs, transform, to_local_action
+from lsy_drone_racing.control.mpc.mpc_utils import states_for_obs, outputs_for_actions
+from lsy_drone_racing.control.utils import to_local_obs, to_local_action
 
 hdf_path = "output/merged.hdf5"
 output_path = "output/race_data.npz"
@@ -25,9 +26,6 @@ if __name__ == '__main__':
 
     local_obs = list()
     local_actions = list()
-
-    states_for_input = range(12)
-    states_for_output = [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14]
 
     # loop over hdf5 leafs (very "efficient")
     for track_key in in_file:
@@ -70,7 +68,7 @@ if __name__ == '__main__':
                                         # fetch snippet
 
 
-                                        init_states = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, states_for_input]
+                                        init_states = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, states_for_obs]
                                         horizon_outputs = np.array(snippet['y_horizons'])[:MAX_SNIPPET_LENGTH, :, :PREDICTION_HORIZON]
                                         positions = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, pos_i]
                                         vels = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, vel_i]
@@ -103,7 +101,7 @@ if __name__ == '__main__':
                                                           snippet_length, axis=0)
 
                                         obs.append(np.hstack([init_states, gate_index, track]))
-                                        actions.append(horizon_outputs[:, states_for_output, :])
+                                        actions.append(horizon_outputs[:, outputs_for_actions, :])
 
     assert len(obs) == len(actions) == len(local_obs) == len(local_actions)
 

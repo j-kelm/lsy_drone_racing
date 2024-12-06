@@ -29,9 +29,9 @@ def main():
     if len(success_times):
         success_mean = fmean(success_times)
     else:
-        success_mean = None
+        success_mean = -1
 
-    logger.info(f"Average over {n_runs} runs. Success rate: {success_rate*100:.3f} % | Mean success time: {success_mean:.4f} s")
+    logger.info(f"Average over {n_runs} runs. Success rate: {success_rate*100:.2f} % | Mean success time: {success_mean:.3f} s")
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

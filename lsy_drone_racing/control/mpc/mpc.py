@@ -338,18 +338,18 @@ class MPC:
 
         # Take the first action from the solved action sequence.
         if u_val.ndim > 1:
-            actions = np.array(u_val[:, 0:])
-            states = np.array(x_val[:, 0:])
-            outputs = np.array(y[:, 0:])
+            actions = np.array(u_val)
+            states = np.array(x_val)
+            outputs = np.array(y)
         else:
-            actions = np.array([u_val[0:]])
-            states = np.array([x_val[0:]])
-            outputs = np.array([y[0:]])
+            actions = np.array(u_val)
+            states = np.array(x_val)
+            outputs = np.array(y)
 
         if __debug__:
             time_after = time.perf_counter()
             print('MPC select_action time: ', time_after - time_before)
-        return actions, states, outputs
+        return {'actions': actions, 'states': states, 'outputs': outputs}
 
     def to_horizon(self, goal_states):
         """Constructs reference states along mpc horizon. (nx, T+1)."""

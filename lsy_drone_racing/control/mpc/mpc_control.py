@@ -65,7 +65,6 @@ class MPCControl:
 
         self.state = None
 
-
     def compute_control(
         self, state, ref, info: dict,
     ) -> npt.NDarray[np.floating]:
@@ -96,13 +95,11 @@ class MPCControl:
         q_pos[0:3] = self.config['q'][0:3]
         info['q'] = np.array(self.config['q'])[:, np.newaxis] + self.config['gate_prioritization'] * np.outer(self.config['q'], gate_prox)
 
-        inputs, states, outputs = self.ctrl.select_action(obs=state,
-                                                          ref=remaining_ref,
-                                                          info=info)
+        horizons = self.ctrl.select_action(obs=state, ref=remaining_ref, info=info)
 
-        self.forces = states[12:16, 1]
+        self.forces = horizons['states'][12:16, 1]
 
-        return inputs, states, outputs
+        return horizons
 
     def reset(self):
         # clear warm start and result dict

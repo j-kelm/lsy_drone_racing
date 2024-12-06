@@ -28,7 +28,6 @@ class AsyncControl(mp.Process):
     def get_action(self, *args, **kwargs):
         return self._action_queue.get(*args, **kwargs)
 
-
     def wait_tasks(self):
         self._obs_queue.join()
 

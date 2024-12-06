@@ -298,7 +298,7 @@ class DroneRacingEnv(gymnasium.Env):
 
     def close(self):
         """Close the environment by stopping the drone and landing back at the starting position."""
-        return_home = True # makes the drone simulate the return to home after stopping
+        return_home = False # makes the drone simulate the return to home after stopping
 
         if return_home:
             # This is done to run the closing controller at a different frequency than the controller before

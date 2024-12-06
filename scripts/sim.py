@@ -63,7 +63,7 @@ def simulate(
     controller_cls = load_controller(controller_path)  # This returns a class, not an instance
     # Create the racing environment
     env: DroneRacingEnv = gymnasium.make(env_id or config.env.id, config=config)
-    env.max_episode_steps = config.env.max_steps
+    env._max_episode_steps = config.env.max_steps
 
     ep_times = []
     gui_timer = None

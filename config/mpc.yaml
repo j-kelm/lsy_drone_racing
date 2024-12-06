@@ -12,7 +12,7 @@ r: [
 
 soft_penalty: 5.0e+2
 horizon_sec: 1.25
-ratio: 1
+ratio: 8
 gate_prioritization: 4.0
 max_iter: 150
 wall_time_ratio: 8000.8
