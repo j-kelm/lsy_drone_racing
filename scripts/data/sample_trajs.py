@@ -76,9 +76,9 @@ if __name__ == "__main__":
                 'step': step,
                 'gate_prox': planner.gate_prox
             }
-            inputs, states, outputs = ctrl.compute_control(state, planner.ref, info)
+            horizons = ctrl.compute_control(state, planner.ref, info)
 
-            state = states[:12, 1]
+            state = horizons['states'][:12, 1]
 
         result = {
             'gates_pos': gates_pos,  # ndarray (gates, 3)

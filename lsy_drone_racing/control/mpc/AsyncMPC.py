@@ -2,6 +2,7 @@ import numpy as np
 
 from lsy_drone_racing.control.AsyncControl import AsyncControl
 from lsy_drone_racing.control.mpc.mpc_control import MPCControl
+from lsy_drone_racing.control.mpc.mpc_utils import outputs_for_actions
 
 
 class AsyncMPC(AsyncControl):
@@ -13,24 +14,12 @@ class AsyncMPC(AsyncControl):
 
     def compute_control(self, obs, info):
         obs = np.concatenate([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
-        inputs, states, outputs = self.ctrl.compute_control(obs, info['reference'], info)
-
-        target_pos = outputs[:3]
-        target_vel = outputs[3:6]
-        target_acc = outputs[6:9]
-        target_yaw = outputs[11:12]
-        target_body_rates = outputs[12:15]
+        horizons = self.ctrl.compute_control(obs, info['reference'], info)
 
         out = {
-            'actions': np.vstack([target_pos, target_vel, target_acc, target_yaw, target_body_rates]).T,
-            'outputs': outputs.T,
-            'states': states.T,
+            'actions': horizons['outputs'][outputs_for_actions].T,
+            'outputs': horizons['outputs'].T,
+            'states': horizons['states'].T,
         }
-
-        # thrust interface
-        # target_c_thrust = outputs[-4:].sum(axis=0)
-        # target_rpy = outputs[9:12]
-
-        # out = {'actions': np.vstack([target_c_thrust, target_rpy]).T}
 
         return out

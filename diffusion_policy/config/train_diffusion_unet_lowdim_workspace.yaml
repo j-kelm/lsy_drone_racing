@@ -11,7 +11,7 @@ keypoint_dim: ${task.keypoint_dim}
 task_name: ${task.name}
 exp_name: "default"
 
-horizon: 16
+horizon: 32
 n_obs_steps: 1
 n_action_steps: ${horizon}
 n_latency_steps: 0
@@ -109,7 +109,7 @@ training:
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 5000 # actual steps, not episodes
-  num_epochs: 200
+  num_epochs: 150
   gradient_accumulate_every: 1
   use_ema: True
   # training loop control
@@ -157,7 +157,7 @@ hydra:
     subdir: ${hydra.job.num}
   sweeper:
     params:
-      training.seed: 11, 22, 33
+      training.seed: 11, 22
       optimizer.lr: 1.0e-5, 1.0e-6
       # horizon: 32
-      # policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"
+      policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"

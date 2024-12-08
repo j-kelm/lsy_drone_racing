@@ -118,17 +118,27 @@ if __name__ == "__main__":
                 # sample a few steps per initial point, automatic warm start from reference
                 for step in range(args.steps_n):
 
-                    inputs, states, outputs = ctrl.compute_control(state=state[:12], ref=ref, info={
+                    horizons = ctrl.compute_control(state=state[:12], ref=ref, info={
                         'step': init_i + step,
                         'gate_prox': gate_prox,
                         #'x_guess': x_guess,
                         #'u_guess': u_guess,
                     })
-                    state = states[:12, 1]
 
+
+                    # add noise to dynamics
+                    state = horizons['states'][:, 1]
+                    lower_bound = np.clip(state - 0.1 * randomizer_range, lower_state_bound, upper_state_bound)
+                    upper_bound = np.clip(state + 0.1 * randomizer_range, lower_state_bound, upper_state_bound)
+                    state = rng.uniform(lower_bound, upper_bound, state.size)
+
+                    state = state[:12]
+
+                    # break if no solution found
                     if not ctrl.ctrl.results_dict['solution_found'][-1]:
                         break
 
+                # save snippet results from results dict before reset
                 result = {
                     'x_horizons': np.array(ctrl.ctrl.results_dict['horizon_states']),
                     # ndarray (steps, states, horizon + 1)

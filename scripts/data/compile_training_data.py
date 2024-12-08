@@ -9,7 +9,7 @@ output_path = "output/race_data.npz"
 
 PREDICTION_HORIZON = 32
 LAST_GATE_INDEX = 0
-MAX_SNIPPET_LENGTH = 30
+MAX_SNIPPET_LENGTH = 48
 
 pos_i = slice(0, 3)
 vel_i = slice(3, 6)
@@ -26,6 +26,8 @@ if __name__ == '__main__':
 
     local_obs = list()
     local_actions = list()
+
+    n_discarded = 0
 
     # loop over hdf5 leafs (very "efficient")
     for track_key in in_file:
@@ -44,7 +46,6 @@ if __name__ == '__main__':
                             point_grp = worker_grp[point_key]
 
                             gate_index = np.array(point_grp['config/next_gate']).T[:MAX_SNIPPET_LENGTH]
-
                             if gate_index[0] > LAST_GATE_INDEX:
                                 continue
 
@@ -54,15 +55,19 @@ if __name__ == '__main__':
                                     # filter bad snippets
                                     if not np.array(snippet['solution_found']).all():
                                         print('No solution')
+                                        n_discarded += len(snippet['solution_found'])
                                         continue
                                     elif (np.array(snippet['objective']) > 1e3).any():
                                         print('Bad objective')
+                                        n_discarded += len(snippet['solution_found'])
                                         continue
                                     elif (np.array(snippet['state_slack']) > 5e-2).any():
                                         print('Bad state slack')
+                                        n_discarded += len(snippet['solution_found'])
                                         continue
                                     elif (np.array(snippet['input_slack']) > 5e-2).any():
                                         print('Bad input slack')
+                                        n_discarded += len(snippet['solution_found'])
                                         continue
                                     else:
                                         # fetch snippet
@@ -109,6 +114,8 @@ if __name__ == '__main__':
     actions = np.concatenate(actions, axis=0)
     local_obs = np.concatenate(local_obs, axis=0)
     local_actions = np.concatenate(local_actions, axis=0)
+
+    print(f'{len(obs)} valid samples, {n_discarded} discarded')
 
     np.savez_compressed(output_path, obs=obs, local_obs=local_obs, actions=actions, local_actions=local_actions)
 
