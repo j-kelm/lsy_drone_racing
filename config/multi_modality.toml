@@ -4,7 +4,7 @@
 # | :-----------------: | :-----------------------: | :-------------------------: | :--------------------: | :---------------: |
 # | `level3.toml`       | **Yes**                   | **Yes**                     | **Yes**                | Robustness        |
 [controller]
-file = "buffered_diffusion.py" # Put your controller file name here. Specifying a controller as argument to scripts will override this setting. Controllers are located in `lsy_drone_racing/control/`
+file = "async_control.py" # Put your controller file name here. Specifying a controller as argument to scripts will override this setting. Controllers are located in `lsy_drone_racing/control/`
 
 [sim]
 # Physics options:
@@ -24,10 +24,10 @@ gui = true                                       # Enable/disable PyBullet's GUI
 type = "GaussianNoise"
 std = 0.001
 
-#[sim.disturbances.dynamics]
-#type = "UniformNoise"
-#low = [-0.1, -0.1, -0.1]
-#high = [0.1, 0.1, 0.1]
+[sim.disturbances.dynamics]
+type = "UniformNoise"
+low = [-0.1, -0.1, -0.1]
+high = [0.1, 0.1, 0.1]
 
 [env]
 id = "DroneRacing-v0" # Either "DroneRacing-v0" or "DroneRacingThrust-v0". If using "DroneRacingThrust-v0", the drone will use the thrust controller instead of the position controller.

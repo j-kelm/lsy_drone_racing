@@ -6,7 +6,7 @@ keypoint_dim: inf
 
 dataset:
   _target_: diffusion_policy.dataset.drone_lowdim_dataset.DroneLowdimDataset
-  zarr_path: output/race_data.npz
+  zarr_path: "output/race_data.npz"
   obs_key: 'local_obs'
   action_key: 'local_actions'
   horizon: ${horizon}

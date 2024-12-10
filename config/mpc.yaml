@@ -12,11 +12,11 @@ r: [
 
 soft_penalty: 5.0e+2
 horizon_sec: 1.25
-ratio: 1
+ratio: 3
 gate_prioritization: 4.0
 max_iter: 150
 wall_time_ratio: 8000.8
-wait_time_ratio: 2200.2
+wait_time_ratio: 10.0
 
 constraints:
   min_thrust: 0.03

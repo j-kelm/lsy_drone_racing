@@ -57,15 +57,15 @@ if __name__ == '__main__':
                                         print('No solution')
                                         n_discarded += len(snippet['solution_found'])
                                         continue
-                                    elif (np.array(snippet['objective']) > 1e3).any():
+                                    elif (np.array(snippet['objective']) > 5e3).any():
                                         print('Bad objective')
                                         n_discarded += len(snippet['solution_found'])
                                         continue
-                                    elif (np.array(snippet['state_slack']) > 5e-2).any():
+                                    elif (np.array(snippet['state_slack']) > 1e-1).any():
                                         print('Bad state slack')
                                         n_discarded += len(snippet['solution_found'])
                                         continue
-                                    elif (np.array(snippet['input_slack']) > 5e-2).any():
+                                    elif (np.array(snippet['input_slack']) > 1e-1).any():
                                         print('Bad input slack')
                                         n_discarded += len(snippet['solution_found'])
                                         continue
