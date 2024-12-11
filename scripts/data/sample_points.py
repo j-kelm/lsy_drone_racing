@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
         initial_info = {
             'env_freq': mpc_config['env_freq'],
-            'nominal_physical_parameters': mpc_config['drone_params'],
+            'config': mpc_config,
         }
 
         initial_obs = track_config

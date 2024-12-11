@@ -23,15 +23,15 @@ def dict_to_group(root, name: str, data: dict):
 if __name__ == "__main__":
     path = "config/mpc.yaml"
     with open(path, "r") as file:
-        mpc_config = munchify(yaml.safe_load(file))
+        mpc_config = munchify(yaml.safe_load(file))['mpc']
 
     with open('config/multi_modality.toml', "r") as file:
         track_config = munchify(toml.load(file))
 
-    mpc_config['ctrl_timestep'] = 1 / track_config.env.freq
-    mpc_config['env_freq'] = track_config.env.freq
-
     f = h5py.File(hdf_path, 'w', libver='latest')
+
+    # add this so it will also get saved
+    mpc_config['env_freq'] = track_config.env.freq
 
     dict_to_group(f, 'config', mpc_config)
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
         initial_info = {
             'env_freq': track_config.env.freq,
-            'nominal_physical_parameters': mpc_config.drone_params,
+            'config': mpc_config,
         }
 
         initial_obs = {

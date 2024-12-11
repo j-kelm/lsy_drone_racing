@@ -4,7 +4,7 @@
 # | :-----------------: | :-----------------------: | :-------------------------: | :--------------------: | :---------------: |
 # | `level3.toml`       | **Yes**                   | **Yes**                     | **Yes**                | Robustness        |
 [controller]
-file = "async_control.py" # Put your controller file name here. Specifying a controller as argument to scripts will override this setting. Controllers are located in `lsy_drone_racing/control/`
+file = "buffered_control.py" # Put your controller file name here. Specifying a controller as argument to scripts will override this setting. Controllers are located in `lsy_drone_racing/control/`
 config = "mpc.yaml"
 
 [sim]

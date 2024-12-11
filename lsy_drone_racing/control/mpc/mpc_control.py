@@ -9,7 +9,7 @@ from lsy_drone_racing.control.mpc.constraints import obstacle_constraints, gate_
 
 
 class MPCControl:
-    def __init__(self, initial_info: dict, initial_obs: dict, config):
+    def __init__(self, initial_info: dict, initial_obs: dict, mpc_config):
         """Initialization of the controller.
 
         INSTRUCTIONS:
@@ -23,13 +23,13 @@ class MPCControl:
             initial_info: Additional environment information from the reset.
             config: MPC configuration
         """
-        self.config = config
-        initial_info['config'] = config
+        self.config = mpc_config
+        initial_info['config'] = mpc_config
 
         # Get model and constraints
         self.model = Model(info=initial_info)
 
-        constraint_config = config['mpc']['constraints']
+        constraint_config = mpc_config['constraints']
 
         self.model.state_constraints_soft += [lambda x: constraint_config['min_thrust'] - x[12:16], lambda x: x[12:16] - constraint_config['max_thrust']]
         self.model.state_constraints_soft += [lambda x: -constraint_config['max_tilt'] / 180 * np.pi - x[6:8], lambda x: x[6:8] - constraint_config['max_tilt']  / 180 * np.pi]
@@ -46,13 +46,13 @@ class MPCControl:
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 
         self.ctrl = MPC(model=self.model,
-                        horizon=int(self.config['mpc']['horizon_sec'] * initial_info['env_freq']),
-                        q_mpc=self.config['mpc']['q'], r_mpc=self.config['mpc']['r'],
-                        soft_penalty=config['mpc']['soft_penalty'],
+                        horizon=int(self.config['horizon_sec'] * initial_info['env_freq']),
+                        q_mpc=self.config['q'], r_mpc=self.config['r'],
+                        soft_penalty=self.config['soft_penalty'],
                         err_on_fail=False,
-                        horizon_skip=config['mpc']['horizon_skip'],
-                        max_wall_time=config['mpc']['max_wall_time'],
-                        max_iter=config['mpc']['max_iter'],
+                        horizon_skip=self.config['horizon_skip'],
+                        max_wall_time=self.config['max_wall_time'],
+                        max_iter=self.config['max_iter'],
                         logs=False,
         )
 
@@ -82,7 +82,7 @@ class MPCControl:
 
         state = np.concatenate([state, self.forces], axis=0)
         step = info['step']
-        q = self.config['mpc']['q']
+        q = self.config['q']
 
         # Slice trajectory for horizon steps, if not long enough, repeat last state.
         remaining_ref = self.to_horizon(ref, step, self.ctrl.T + 1)
@@ -90,7 +90,7 @@ class MPCControl:
 
         q_pos = np.zeros_like(q)
         q_pos[0:3] = q[0:3]
-        info['q'] = np.array(q)[:, np.newaxis] + self.config['mpc']['gate_prioritization'] * np.outer(q, gate_prox)
+        info['q'] = np.array(q)[:, np.newaxis] + self.config['gate_prioritization'] * np.outer(q, gate_prox)
 
         horizons = self.ctrl.select_action(obs=state, ref=remaining_ref, info=info)
 

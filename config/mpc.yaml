@@ -1,14 +1,14 @@
-controller: diffusion
+controller: mpc
 
 mp:
   n_actions: 3
   offset: 1
-  wait_time_ratio: 10.0
+  wait_time_ratio: 100000.0
 
 buffered:
   n_actions: 6
   n_initial_actions: 16
-  offset: 0
+  offset: 2
 
 diffusion:
   inference_steps: 5  # DDIM
