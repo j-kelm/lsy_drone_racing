@@ -1,43 +1,61 @@
-q: [
-  15.0, 15.0, 15.0,
-  0.0, 0.0, 0.0,
-  0.1, 0.1, 0.00,
-  2.5e-1, 2.5e-1, 2.5e-1,
-  0.01, 0.01, 0.01, 0.01,
-]
+controller: diffusion
 
-r: [
-  1.0e-2, 1.0e-2, 1.0e-2, 1.0e-2,
-]
+mp:
+  n_actions: 3
+  offset: 1
+  wait_time_ratio: 10.0
 
-soft_penalty: 5.0e+2
-horizon_sec: 1.25
-ratio: 3
-gate_prioritization: 4.0
-max_iter: 150
-wall_time_ratio: 8000.8
-wait_time_ratio: 10.0
+buffered:
+  n_actions: 6
+  n_initial_actions: 16
+  offset: 0
 
-constraints:
-  min_thrust: 0.03
-  max_thrust: 0.12
-  max_thrust_change: 1.0
-  gate_r: 0.15
-  obstacle_r: 0.18
-  min_z: 0.07
-  max_tilt: 80 # degrees
+diffusion:
+  inference_steps: 5  # DDIM
+  device: "cuda:0"
 
-planner:
-  speed: 1.0
-  gate_time_const: 0.1
+mpc:
+  q: [
+    15.0, 15.0, 15.0,
+    0.0, 0.0, 0.0,
+    0.1, 0.1, 0.00,
+    2.5e-1, 2.5e-1, 2.5e-1,
+    0.01, 0.01, 0.01, 0.01,
+  ]
 
-drone_params:
-  'quadrotor_mass': 0.03454
-  'L': 0.046
-  'g': 9.81
-  'quadrotor_ixx_inertia': 1.4e-05
-  'quadrotor_iyy_inertia': 1.4e-05
-  'quadrotor_izz_inertia': 2.17e-05
-  'quadrotor_kf': 3.16e-10
-  'quadrotor_km': 7.94e-12
+  r: [
+    1.0e-2, 1.0e-2, 1.0e-2, 1.0e-2,
+  ]
+
+  horizon_skip: 1
+  soft_penalty: 5.0e+2
+  horizon_sec: 1.25
+  gate_prioritization: 4.0
+  max_iter: 150
+  max_wall_time: 600
+
+  constraints:
+    min_thrust: 0.03  # N, single rotor
+    max_thrust: 0.12  # N, single rotor
+    max_thrust_change: 1.0  # N/s, single rotor
+    gate_r: 0.15  # m
+    obstacle_r: 0.18  # m
+    min_z: 0.07  # m
+    max_tilt: 80  # deg
+
+  planner:
+    speed: 1.0  # m/s nominal
+    gate_time_const: 0.1
+
+  model:
+    'quadrotor_mass': 0.03454
+    'L': 0.046
+    'g': 9.81
+    'quadrotor_ixx_inertia': 1.4e-05
+    'quadrotor_iyy_inertia': 1.4e-05
+    'quadrotor_izz_inertia': 2.17e-05
+    'quadrotor_kf': 3.16e-10
+    'quadrotor_km': 7.94e-12
+
+
 

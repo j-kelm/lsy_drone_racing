@@ -34,7 +34,7 @@ from munch import munchify
 import yaml
 
 from lsy_drone_racing.control import BaseController
-from lsy_drone_racing.control.AsyncControl import AsyncControl
+from lsy_drone_racing.control.control_process import ControlProcess
 import multiprocessing as mp
 
 
@@ -56,26 +56,26 @@ class Controller(BaseController):
         """
         super().__init__(initial_obs, initial_info)
 
-        path = "config/mpc.yaml"
-        with open(path, "r") as file:
-            mpc_config = munchify(yaml.safe_load(file))
+        config_path = "config/mpc.yaml"
+        with open(config_path, "r") as file:
+            config = munchify(yaml.safe_load(file))
 
         # Save environment and control parameters.
         self.CTRL_FREQ = initial_info['env_freq']
         self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
-        self.config = mpc_config
+        self.config = config
 
-        initial_info['nominal_physical_parameters'] = mpc_config.drone_params
-
-        try:
-            mp.set_start_method('spawn')
-        except RuntimeError:
-            pass
+        # diffusion (torch) only works with spawn, MPC (casadi) only works with fork
+        if config.controller == 'diffusion':
+            try:
+                mp.set_start_method('spawn')
+            except RuntimeError:
+                pass
 
         self._tick = 0
-        initial_info['step'] = -mpc_config.ratio
+        initial_info['step'] = self._tick - config.mp.n_actions
 
-        self.ctrl = AsyncControl(initial_obs=initial_obs, initial_info=initial_info, config=mpc_config, ratio=mpc_config.ratio)
+        self.ctrl = ControlProcess(initial_obs=initial_obs, initial_info=initial_info, config=config, daemon=False)
         self.ctrl.start()
 
         # start precomputing first actions
@@ -111,7 +111,7 @@ class Controller(BaseController):
         # only put new obs and retrieve action to minimize control delay
         self.ctrl.put_obs(obs, info, block=False)
 
-        action, step_idx = self.ctrl.get_action(block=True, timeout=self.CTRL_TIMESTEP * self.config.wait_time_ratio)
+        action, step_idx = self.ctrl.get_action(block=True, timeout=self.CTRL_TIMESTEP * self.config.mp.wait_time_ratio)
         assert self._tick == step_idx, f'Action was provided for step {step_idx}, should be {self._tick}'
 
         return action

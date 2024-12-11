@@ -155,6 +155,7 @@ class DroneRacingEnv(gymnasium.Env):
         info["low_level_ctrl_freq"] = self.config.sim.ctrl_freq
         info["drone_mass"] = self.sim.drone.params.mass
         info["env_freq"] = self.config.env.freq
+        info["config_path"] = self.config.controller.config
         return self.obs, info
 
     def step(

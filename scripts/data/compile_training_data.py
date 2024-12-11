@@ -7,9 +7,14 @@ from lsy_drone_racing.control.utils import to_local_obs, to_local_action
 hdf_path = "output/merged.hdf5"
 output_path = "output/race_data.npz"
 
-PREDICTION_HORIZON = 32
-LAST_GATE_INDEX = 0
+
+LAST_GATE_INDEX = 1 # 0
+N_LATENCY_STEPS = 2 # 0
+PREDICTION_HORIZON = 8 + N_LATENCY_STEPS
 MAX_SNIPPET_LENGTH = 48
+MAX_STATE_SLACK = 1e10 # 1e-1
+MAX_INPUT_SLACK = 1e10 # 1e-1
+MAX_OBJECTIVE = 1e10 # 5e3
 
 pos_i = slice(0, 3)
 vel_i = slice(3, 6)
@@ -57,15 +62,15 @@ if __name__ == '__main__':
                                         print('No solution')
                                         n_discarded += len(snippet['solution_found'])
                                         continue
-                                    elif (np.array(snippet['objective']) > 5e3).any():
+                                    elif (np.array(snippet['objective']) > MAX_OBJECTIVE).any():
                                         print('Bad objective')
                                         n_discarded += len(snippet['solution_found'])
                                         continue
-                                    elif (np.array(snippet['state_slack']) > 1e-1).any():
+                                    elif (np.array(snippet['state_slack']) > MAX_STATE_SLACK).any():
                                         print('Bad state slack')
                                         n_discarded += len(snippet['solution_found'])
                                         continue
-                                    elif (np.array(snippet['input_slack']) > 1e-1).any():
+                                    elif (np.array(snippet['input_slack']) > MAX_INPUT_SLACK).any():
                                         print('Bad input slack')
                                         n_discarded += len(snippet['solution_found'])
                                         continue
@@ -74,7 +79,7 @@ if __name__ == '__main__':
 
 
                                         init_states = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, states_for_obs]
-                                        horizon_outputs = np.array(snippet['y_horizons'])[:MAX_SNIPPET_LENGTH, :, :PREDICTION_HORIZON]
+                                        horizon_outputs = np.array(snippet['y_horizons'])[:MAX_SNIPPET_LENGTH, :, N_LATENCY_STEPS:PREDICTION_HORIZON]
                                         positions = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, pos_i]
                                         vels = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, vel_i]
                                         rpys = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, rpy_i]

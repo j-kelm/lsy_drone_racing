@@ -12,7 +12,7 @@ class DeltaModel:
 
         self.dt = 1 / self.info['env_freq']
 
-        physical_params = self.info['nominal_physical_parameters']
+        physical_params = self.info['config']['mpc']['model']
         self.m = physical_params['quadrotor_mass']
         self.Ixx = physical_params['quadrotor_ixx_inertia']
         self.Iyy = physical_params['quadrotor_iyy_inertia']

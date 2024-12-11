@@ -1,28 +1,25 @@
 import multiprocessing as mp
 import queue
 import time
-from turtledemo.forest import start
 
-from lsy_drone_racing.control.diffusion.diffusion import HorizonDiffusion
+from lsy_drone_racing.control.diffusion.horizon_diffusion import HorizonDiffusion
+from lsy_drone_racing.control.mpc.horizon_mpc import HorizonMPC
 
 
-class AsyncControl(mp.Process):
+class ControlProcess(mp.Process):
     """
     Wrap a controller to fetch actions asynchronously in a separate process
 
     """
 
-    def __init__(self, initial_info, initial_obs, config, ratio: int=1, *args, **kwargs):
+    def __init__(self, initial_info, initial_obs, config, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        assert ratio >= 0, "Amount of environment steps per control step must be at least 1"
-
-        base_controller = "diffusion"
+        base_controller = config.controller
 
         if base_controller == 'diffusion':
             self.ctrl = HorizonDiffusion(initial_obs, initial_info, config)
         elif base_controller == 'mpc':
-            self.ctrl = None
+            self.ctrl = HorizonMPC(initial_obs, initial_info, config)
         else:
             raise RuntimeError(f'Controller type {base_controller} not supported!')
 
@@ -32,9 +29,10 @@ class AsyncControl(mp.Process):
         self._action_queue.cancel_join_thread()
         self._obs_queue.cancel_join_thread()
 
-        self._terminate = mp.Event()
-
-        self._ratio = ratio
+        self._n_actions = config.mp.n_actions
+        self._delay = config.mp.offset
+        assert self._n_actions > 0, "Amount of environment steps per control step must be at least 1"
+        assert self._delay >= 0, "Action delay cannot be negative"
 
     def put_obs(self, obs, info, *args, **kwargs):
         self._obs_queue.put((obs, info), *args, **kwargs)
@@ -45,31 +43,28 @@ class AsyncControl(mp.Process):
     def wait_tasks(self):
         self._obs_queue.join()
 
-    def quit(self):
-        self._terminate.set()
-
     def run(self):
         while True:
             # blocking, wait until new obs is available
             try:
-                obs, info = self._obs_queue.get(block=True, timeout=1) # crash self if no obs for 30s
+                obs, info = self._obs_queue.get(block=True, timeout=5) # crash self if no obs
             except queue.Empty:
                 print('Worker is done.')
-                break
+                return 0
 
             # compute new action every ratio steps
-            if not info['step'] % self._ratio:
+            if not info['step'] % self._n_actions:
                 start_time = time.perf_counter()
-                # adjust step into future
-                info['step'] += self._ratio
+
+                info['step'] += self._n_actions
 
                 actions = self.ctrl.compute_horizon(obs, info).squeeze()
-                actions = actions[:, self._ratio:].T
+                assert len(actions) >= self._n_actions + self._delay, "Controller must return at least delay + n_action steps"
 
-                assert len(actions) >= self._ratio, "Controller must return at least ratio steps"
-                for step_offset, action in enumerate(actions[:self._ratio]):
+                actions = actions[:, self._delay:self._n_actions+self._delay].T
+                for step_offset, action in enumerate(actions):
                     self._action_queue.put((action, info['step'] + step_offset))
-                print(f'Diffusion took {time.perf_counter() - start_time}')
+                print(f'Controller took {time.perf_counter() - start_time}')
 
             # indicate that all currents obs are processed
             self._obs_queue.task_done()

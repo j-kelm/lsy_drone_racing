@@ -109,7 +109,7 @@ training:
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 5000 # actual steps, not episodes
-  num_epochs: 150
+  num_epochs: 100
   gradient_accumulate_every: 1
   use_ema: True
   # training loop control
@@ -157,7 +157,8 @@ hydra:
     subdir: ${hydra.job.num}
   sweeper:
     params:
-      training.seed: 11, 22
-      optimizer.lr: 1.0e-5
+      training.seed: 11
+      optimizer.lr: 1.0e-5, 5.0e-6
+      policy.model.kernel_size: 3, 5
       # horizon: 8
       # policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"

@@ -23,20 +23,13 @@ class MPCControl:
             initial_info: Additional environment information from the reset.
             config: MPC configuration
         """
-
-        # Save environment and control parameters.
-        self.CTRL_FREQ = initial_info["env_freq"]
-        self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
-
-        self.initial_info = initial_info
-        self.initial_obs = initial_obs
-
         self.config = config
+        initial_info['config'] = config
 
         # Get model and constraints
-        self.model = Model(info=self.initial_info)
+        self.model = Model(info=initial_info)
 
-        constraint_config = config['constraints']
+        constraint_config = config['mpc']['constraints']
 
         self.model.state_constraints_soft += [lambda x: constraint_config['min_thrust'] - x[12:16], lambda x: x[12:16] - constraint_config['max_thrust']]
         self.model.state_constraints_soft += [lambda x: -constraint_config['max_tilt'] / 180 * np.pi - x[6:8], lambda x: x[6:8] - constraint_config['max_tilt']  / 180 * np.pi]
@@ -44,20 +37,23 @@ class MPCControl:
         self.model.input_constraints_soft += [lambda u: -constraint_config['max_thrust_change'] * constraint_config['max_thrust'] - u, lambda u: u - constraint_config['max_thrust_change'] * constraint_config['max_thrust']]
 
         ellipsoid_constraints = list()
-        for obstacle_pos in self.initial_obs['obstacles_pos']:
+        for obstacle_pos in initial_obs['obstacles_pos']:
             ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=constraint_config['obstacle_r'], s=1.4)
 
-        for gate_pos, gate_rpy in zip(self.initial_obs['gates_pos'], self.initial_obs['gates_rpy']):
+        for gate_pos, gate_rpy in zip(initial_obs['gates_pos'], initial_obs['gates_rpy']):
             ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=constraint_config['gate_r'], s=1.75)
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 
         self.ctrl = MPC(model=self.model,
-                        horizon=int(self.config['horizon_sec'] * self.CTRL_FREQ),
-                        q_mpc=self.config['q'], r_mpc=self.config['r'],
-                        soft_penalty=config['soft_penalty'],
+                        horizon=int(self.config['mpc']['horizon_sec'] * initial_info['env_freq']),
+                        q_mpc=self.config['mpc']['q'], r_mpc=self.config['mpc']['r'],
+                        soft_penalty=config['mpc']['soft_penalty'],
                         err_on_fail=False,
-                        horizon_skip=config['ratio'],
+                        horizon_skip=config['mpc']['horizon_skip'],
+                        max_wall_time=config['mpc']['max_wall_time'],
+                        max_iter=config['mpc']['max_iter'],
+                        logs=False,
         )
 
         self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[
@@ -86,14 +82,15 @@ class MPCControl:
 
         state = np.concatenate([state, self.forces], axis=0)
         step = info['step']
+        q = self.config['mpc']['q']
 
         # Slice trajectory for horizon steps, if not long enough, repeat last state.
         remaining_ref = self.to_horizon(ref, step, self.ctrl.T + 1)
         gate_prox = self.to_horizon(info['gate_prox'], step, self.ctrl.T + 1)
 
-        q_pos = np.zeros_like(self.config['q'])
-        q_pos[0:3] = self.config['q'][0:3]
-        info['q'] = np.array(self.config['q'])[:, np.newaxis] + self.config['gate_prioritization'] * np.outer(self.config['q'], gate_prox)
+        q_pos = np.zeros_like(q)
+        q_pos[0:3] = q[0:3]
+        info['q'] = np.array(q)[:, np.newaxis] + self.config['mpc']['gate_prioritization'] * np.outer(q, gate_prox)
 
         horizons = self.ctrl.select_action(obs=state, ref=remaining_ref, info=info)
 

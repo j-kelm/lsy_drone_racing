@@ -35,18 +35,17 @@ import pybullet as p
 from munch import munchify
 import yaml
 
-from lsy_drone_racing.control.BufferedControl import BufferedController
 from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 from lsy_drone_racing.control.mpc.mpc_utils import outputs_for_actions
 
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
+from lsy_drone_racing.control.utils import obs_from_dict
 
 
-
-class Controller(BufferedController):
+class HorizonMPC:
     """Template controller class."""
 
-    def __init__(self, initial_obs: dict, initial_info: dict):
+    def __init__(self, initial_obs: dict, initial_info: dict, config: dict):
         """Initialization of the controller.
 
         INSTRUCTIONS:
@@ -61,69 +60,39 @@ class Controller(BufferedController):
         """
         path = "config/mpc.yaml"
         with open(path, "r") as file:
-            mpc_config = munchify(yaml.safe_load(file))
+            config = munchify(yaml.safe_load(file))
 
-        # Save environment and control parameters.
-        self.CTRL_FREQ = initial_info['env_freq']
-        self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
-        self.initial_obs = initial_obs
-        self.initial_info = initial_info
-        self.config = mpc_config
-
-        self.initial_info['nominal_physical_parameters'] = mpc_config.drone_params
-
-        self.episode_reset()
-
-        self.planner = MinsnapPlanner(initial_info=self.initial_info,
-                                      initial_obs=self.initial_obs,
-                                      speed=mpc_config.planner.speed,
-                                      gate_time_constant=mpc_config.planner.gate_time_const,
+        self.planner = MinsnapPlanner(initial_info=initial_info,
+                                      initial_obs=initial_obs,
+                                      speed=config.mpc.planner.speed,
+                                      gate_time_constant=config.mpc.planner.gate_time_const,
                                       )
-        self.mpc_ctrl = MPCControl(initial_info=initial_info,initial_obs=initial_obs, config=mpc_config)
+
+
+        self.mpc_ctrl = MPCControl(initial_info=initial_info,initial_obs=initial_obs, config=config)
 
         if p.isConnected():
             for i in range(self.planner.ref.shape[1]-10):
                 if not i % 10:
                     p.addUserDebugLine(self.planner.ref[0:3, i], self.planner.ref[0:3, i+10], lineColorRGB=[1,0,0])
 
-        super().__init__(initial_obs, initial_info, 6, 6, 2)
-
 
     def compute_horizon(self, obs: dict, info: dict) -> npt.NDArray[np.floating]:
-        info['step'] = self._tick
+        obs = obs_from_dict(obs)
+
         info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox
 
-        obs = np.concatenate([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
         horizons = self.mpc_ctrl.compute_control(obs, info['reference'], info)
+
         outputs = horizons['outputs']
         actions = outputs[outputs_for_actions]
 
         return actions
 
-    def episode_reset(self):
-        self._tick = 1
-
-    def step_callback(
-        self,
-        action: npt.NDArray[np.floating],
-        obs: npt.NDArray[np.floating],
-        reward: float,
-        terminated: bool,
-        truncated: bool,
-        info: dict,
-    ):
-        self._tick += 1
-
-    def episode_callback(self):
-        # use this function to plot episode data instead of learning
-        # file_path = "output/states.npz"
-        # self.save_episode(file_path)
-        # history = np.load(file_path)
-        # plot_3d(history)
-
-        # self.async_ctrl.join(timeout=2)
-        pass
-
     def reset(self):
-        pass
+        self.mpc_ctrl.reset()
+
+    @property
+    def unwrapped(self):
+        return self.mpc_ctrl
