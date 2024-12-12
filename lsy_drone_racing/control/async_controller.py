@@ -73,7 +73,7 @@ class Controller(BaseController):
                 pass
 
         self._tick = 0
-        initial_info['step'] = self._tick - config.mp.n_actions
+        initial_info['step'] = self._tick - config.n_actions
 
         self.ctrl = ControlProcess(initial_obs=initial_obs, initial_info=initial_info, config=config, daemon=False)
         self.ctrl.start()
@@ -111,7 +111,7 @@ class Controller(BaseController):
         # only put new obs and retrieve action to minimize control delay
         self.ctrl.put_obs(obs, info, block=False)
 
-        action, step_idx = self.ctrl.get_action(block=True, timeout=self.CTRL_TIMESTEP * self.config.mp.wait_time_ratio)
+        action, step_idx = self.ctrl.get_action(block=True, timeout=self.CTRL_TIMESTEP * self.config.wait_time_ratio)
         assert self._tick == step_idx, f'Action was provided for step {step_idx}, should be {self._tick}'
 
         return action

@@ -60,15 +60,15 @@ class BufferedController(BaseController):
             raise RuntimeError(f'Controller type {base_controller} not supported!')
 
         self.action_buffer = list()
-        self.offset = config.buffered.offset
+        self.offset = config.offset
 
         self._tick = 0
         initial_info['step'] = self._tick
 
         # compute first with n_initial_actions, then set back
-        self.n_actions = config.buffered.n_initial_actions
+        self.n_actions = config.n_initial_actions
         self.compute_control(initial_obs, initial_info)
-        self.n_actions = config.buffered.n_actions
+        self.n_actions = config.n_actions
 
 
     def compute_control(

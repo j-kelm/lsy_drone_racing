@@ -69,7 +69,7 @@ class HorizonMPC:
                                       )
 
 
-        self.mpc_ctrl = MPCControl(initial_info=initial_info,initial_obs=initial_obs, mpc_config=config['mpc'])
+        self.mpc_ctrl = MPCControl(initial_info=initial_info,initial_obs=initial_obs, config=config)
 
         if p.isConnected():
             for i in range(self.planner.ref.shape[1]-10):

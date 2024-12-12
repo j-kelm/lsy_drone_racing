@@ -1,14 +1,9 @@
 controller: mpc
 
-mp:
-  n_actions: 4
-  offset: 0
-  wait_time_ratio: 100000.0
-
-buffered:
-  n_actions: 4
-  n_initial_actions: 16
-  offset: 0
+n_actions: 2
+n_initial_actions: 16  # only used for buffered
+offset: 0
+wait_time_ratio: 100000.0  # only used for async
 
 diffusion:
   inference_steps: 5  # DDIM
@@ -20,18 +15,18 @@ mpc:
     0.0, 0.0, 0.0,
     0.1, 0.1, 0.00,
     2.5e-1, 2.5e-1, 2.5e-1,
-    0.001, 0.001, 0.001, 0.001,
+    0.01, 0.01, 0.01, 0.01,
   ]
 
   r: [
-    1.0e-2, 1.0e-2, 1.0e-2, 1.0e-2,
+    1.0e-1, 1.0e-1, 1.0e-1, 1.0e-1,
   ]
 
-  horizon_skip: 4
+  # horizon_skip: 4  # deprecated because dangerous
   soft_penalty: 5.0e+2
   horizon_sec: 1.25
   gate_prioritization: 4.0
-  max_iter: 1
+  max_iter: 2
   max_wall_time: 600
 
   constraints:

@@ -29,8 +29,8 @@ class ControlProcess(mp.Process):
         self._action_queue.cancel_join_thread()
         self._obs_queue.cancel_join_thread()
 
-        self._n_actions = config.mp.n_actions
-        self._delay = config.mp.offset
+        self._n_actions = config.n_actions
+        self._delay = config.offset
         assert self._n_actions > 0, "Amount of environment steps per control step must be at least 1"
         assert self._delay >= 0, "Action delay cannot be negative"
 
@@ -47,7 +47,7 @@ class ControlProcess(mp.Process):
         while True:
             # blocking, wait until new obs is available
             try:
-                obs, info = self._obs_queue.get(block=True, timeout=5) # crash self if no obs
+                obs, info = self._obs_queue.get(block=True, timeout=1) # crash self if no obs
             except queue.Empty:
                 print('Worker is done.')
                 return 0

@@ -8,8 +8,8 @@ hdf_path = "output/merged.hdf5"
 output_path = "output/race_data.npz"
 
 
-LAST_GATE_INDEX = 1 # 0
-N_LATENCY_STEPS = 2 # 0
+LAST_GATE_INDEX = 0 # 0
+N_LATENCY_STEPS = 0 # 0
 PREDICTION_HORIZON = 8 + N_LATENCY_STEPS
 MAX_SNIPPET_LENGTH = 48
 MAX_STATE_SLACK = 1e10 # 1e-1
