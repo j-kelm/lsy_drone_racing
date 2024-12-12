@@ -1,14 +1,14 @@
 controller: mpc
 
 mp:
-  n_actions: 3
-  offset: 1
+  n_actions: 4
+  offset: 0
   wait_time_ratio: 100000.0
 
 buffered:
-  n_actions: 6
+  n_actions: 4
   n_initial_actions: 16
-  offset: 2
+  offset: 0
 
 diffusion:
   inference_steps: 5  # DDIM
@@ -20,24 +20,24 @@ mpc:
     0.0, 0.0, 0.0,
     0.1, 0.1, 0.00,
     2.5e-1, 2.5e-1, 2.5e-1,
-    0.01, 0.01, 0.01, 0.01,
+    0.001, 0.001, 0.001, 0.001,
   ]
 
   r: [
     1.0e-2, 1.0e-2, 1.0e-2, 1.0e-2,
   ]
 
-  horizon_skip: 1
+  horizon_skip: 4
   soft_penalty: 5.0e+2
   horizon_sec: 1.25
   gate_prioritization: 4.0
-  max_iter: 150
+  max_iter: 1
   max_wall_time: 600
 
   constraints:
     min_thrust: 0.03  # N, single rotor
     max_thrust: 0.12  # N, single rotor
-    max_thrust_change: 1.0  # N/s, single rotor
+    max_thrust_change: 5.0  # max thrust/s, single rotor
     gate_r: 0.15  # m
     obstacle_r: 0.18  # m
     min_z: 0.07  # m

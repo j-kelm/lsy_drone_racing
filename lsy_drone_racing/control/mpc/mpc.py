@@ -76,7 +76,7 @@ class MPC:
         self.max_wall_time = max_wall_time
 
         self.set_dynamics_func()
-        self.setup_optimizer(self.solver)
+        self.setup_optimizer(solver=self.solver, max_iter=max_iter, max_wall_time=max_wall_time)
 
         self.reset()
 
@@ -191,7 +191,7 @@ class MPC:
         opts = {'expand': True,
                 'error_on_fail': False,
                 'ipopt.print_level': 2 if __debug__ else 0,
-                'ipopt.print_timing_statistics': 'yes',
+                'ipopt.print_timing_statistics': 'yes' if __debug__ else 'no',
                 'print_time': 0,
                 'record_time': 1,
                 'jit': False,
@@ -236,8 +236,6 @@ class MPC:
         Returns:
             action (ndarray): Input/action to the task/env.
         '''
-        time_before = time.perf_counter()
-
         opti_dict = self.opti_dict
         opti = opti_dict['opti']
         x_var = opti_dict['x_var']  # optimization variables
@@ -297,10 +295,13 @@ class MPC:
             # shift previous solutions by 1 step
             x_guess = deepcopy(self.x_prev)
             u_guess = deepcopy(self.u_prev)
-            x_guess[:, :-self.horizon_skip] = x_guess[:, self.horizon_skip:]
-            u_guess[:-self.horizon_skip] = u_guess[self.horizon_skip:]
+            x_guess[:, :self.T + 1 - self.horizon_skip] = x_guess[:, self.horizon_skip:]
+            u_guess[:, :self.T - self.horizon_skip] = u_guess[:, self.horizon_skip:]
             opti.set_initial(x_var, x_guess)
             opti.set_initial(u_var, u_guess)
+
+
+        time_before = time.perf_counter()
 
         # Solve the optimization problem
         try:
@@ -315,6 +316,10 @@ class MPC:
                 print(colored(f'Infeasible MPC Problem: {status}', 'red'))
                 x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
                 input_slack_val, state_slack_val = opti.debug.value(input_slack), opti.debug.value(state_slack)
+
+        if __debug__:
+            time_after = time.perf_counter()
+            print('MPC select_action time: ', time_after - time_before)
 
 
         self.x_prev = x_val
@@ -346,9 +351,6 @@ class MPC:
             states = np.array(x_val)
             outputs = np.array(y)
 
-        if __debug__:
-            time_after = time.perf_counter()
-            print('MPC select_action time: ', time_after - time_before)
         return {'actions': actions, 'states': states, 'outputs': outputs}
 
     def to_horizon(self, goal_states):

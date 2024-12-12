@@ -31,10 +31,10 @@ class MPCControl:
 
         constraint_config = mpc_config['constraints']
 
-        self.model.state_constraints_soft += [lambda x: constraint_config['min_thrust'] - x[12:16], lambda x: x[12:16] - constraint_config['max_thrust']]
-        self.model.state_constraints_soft += [lambda x: -constraint_config['max_tilt'] / 180 * np.pi - x[6:8], lambda x: x[6:8] - constraint_config['max_tilt']  / 180 * np.pi]
-        self.model.state_constraints_soft += [lambda x: constraint_config['min_z'] - x[2]]
-        self.model.input_constraints_soft += [lambda u: -constraint_config['max_thrust_change'] * constraint_config['max_thrust'] - u, lambda u: u - constraint_config['max_thrust_change'] * constraint_config['max_thrust']]
+        self.model.state_constraints_soft += [lambda x: constraint_config['min_thrust'] - x[-4:], lambda x: x[-4:] - constraint_config['max_thrust']]
+        self.model.state_constraints += [lambda x: -constraint_config['max_tilt'] / 180 * np.pi - x[6:8], lambda x: x[6:8] - constraint_config['max_tilt']  / 180 * np.pi]
+        self.model.state_constraints += [lambda x: constraint_config['min_z'] - x[2]]
+        self.model.input_constraints += [lambda u: -constraint_config['max_thrust_change'] * constraint_config['max_thrust'] - u, lambda u: u - constraint_config['max_thrust_change'] * constraint_config['max_thrust']]
 
         ellipsoid_constraints = list()
         for obstacle_pos in initial_obs['obstacles_pos']:
