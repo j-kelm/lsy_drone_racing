@@ -2,7 +2,7 @@ controller: mpc
 
 n_actions: 2
 n_initial_actions: 16  # only used for buffered
-offset: 0
+offset: 2
 wait_time_ratio: 100000.0  # only used for async
 
 diffusion:
@@ -26,13 +26,13 @@ mpc:
   soft_penalty: 5.0e+2
   horizon_sec: 1.25
   gate_prioritization: 4.0
-  max_iter: 2
+  max_iter: 1
   max_wall_time: 600
 
   constraints:
     min_thrust: 0.03  # N, single rotor
     max_thrust: 0.12  # N, single rotor
-    max_thrust_change: 5.0  # max thrust/s, single rotor
+    max_thrust_change: 2.0  # max thrust/s, single rotor
     gate_r: 0.15  # m
     obstacle_r: 0.18  # m
     min_z: 0.07  # m

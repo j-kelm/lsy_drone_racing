@@ -96,7 +96,7 @@ val_dataloader:
 
 optimizer:
   _target_: torch.optim.AdamW
-  lr: 1.0e-5
+  lr: 5.0e-6
   betas: [0.95, 0.999]
   eps: 1.0e-8
   weight_decay: 1.0e-6
@@ -158,7 +158,6 @@ hydra:
   sweeper:
     params:
       training.seed: 11, 22
-      optimizer.lr: 1.0e-5
-      policy.model.kernel_size: 5
+      # policy.model.kernel_size: 5
       # horizon: 8
       # policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"

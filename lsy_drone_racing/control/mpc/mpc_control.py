@@ -96,7 +96,7 @@ class MPCControl:
 
         horizons = self.ctrl.select_action(obs=state, ref=remaining_ref, info=info)
 
-        self.forces = horizons['states'][12:16, self.config['n_actions']]
+        self.forces = horizons['states'][-4:, self.config['n_actions']]
 
         return horizons
 
