@@ -33,17 +33,20 @@ class MPCControl:
 
         constraint_config = mpc_config['constraints']
 
-        self.model.state_constraints_soft += [lambda x: constraint_config['min_thrust'] - x[-4:], lambda x: x[-4:] - constraint_config['max_thrust']]
-        self.model.state_constraints += [lambda x: -constraint_config['max_tilt'] / 180 * np.pi - x[6:8], lambda x: x[6:8] - constraint_config['max_tilt']  / 180 * np.pi]
-        self.model.state_constraints += [lambda x: constraint_config['min_z'] - x[2]]
-        self.model.input_constraints += [lambda u: -constraint_config['max_thrust_change'] * constraint_config['max_thrust'] - u, lambda u: u - constraint_config['max_thrust_change'] * constraint_config['max_thrust']]
+        self.model.state_constraints_soft += [lambda x: constraint_config['min_thrust'] - x[-4:],
+                                              lambda x: x[-4:] - constraint_config['max_thrust']]
+        self.model.state_constraints += [lambda x: -constraint_config['max_tilt'] / 180 * np.pi - x[6:8],
+                                         lambda x: x[6:8] - constraint_config['max_tilt'] / 180 * np.pi]
+        self.model.state_constraints_soft += [lambda x: constraint_config['min_z'] - x[2]]
+        self.model.input_constraints_soft += [lambda u: -constraint_config['max_thrust_change'] * constraint_config['max_thrust'] - u,
+                                              lambda u: u - constraint_config['max_thrust_change'] * constraint_config['max_thrust']]
 
         ellipsoid_constraints = list()
         for obstacle_pos in initial_obs['obstacles_pos']:
-            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=constraint_config['obstacle_r'], s=1.4)
+            ellipsoid_constraints += obstacle_constraints(obstacle_pos, r=constraint_config['obstacle_r'], s=1.4)  # 1.3
 
         for gate_pos, gate_rpy in zip(initial_obs['gates_pos'], initial_obs['gates_rpy']):
-            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=constraint_config['gate_r'], s=1.75)
+            ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=constraint_config['gate_r'], s=1.75)  # 1.6
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 
@@ -53,7 +56,7 @@ class MPCControl:
                         soft_penalty=mpc_config['soft_penalty'],
                         err_on_fail=False,
                         horizon_skip=self.config['n_actions'],
-                        max_wall_time=mpc_config['max_wall_time'],
+                        max_wall_time=mpc_config['max_wall_time']*self.config['n_actions']/initial_info['env_freq'],
                         max_iter=mpc_config['max_iter'],
                         logs=False,
         )

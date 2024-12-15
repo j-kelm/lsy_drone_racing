@@ -190,7 +190,7 @@ class MPC:
 
         opts = {'expand': True,
                 'error_on_fail': False,
-                'ipopt.print_level': 2 if __debug__ else 0,
+                'ipopt.print_level': 8 if __debug__ else 0,
                 'ipopt.print_timing_statistics': 'yes' if __debug__ else 'no',
                 'print_time': 0,
                 'record_time': 1,
