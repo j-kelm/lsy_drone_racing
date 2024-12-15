@@ -38,7 +38,7 @@ class MPCControl:
         self.model.state_constraints += [lambda x: -constraint_config['max_tilt'] / 180 * np.pi - x[6:8],
                                          lambda x: x[6:8] - constraint_config['max_tilt'] / 180 * np.pi]
         self.model.state_constraints_soft += [lambda x: constraint_config['min_z'] - x[2]]
-        self.model.input_constraints_soft += [lambda u: -constraint_config['max_thrust_change'] * constraint_config['max_thrust'] - u,
+        self.model.input_constraints_soft += [lambda u: -u - constraint_config['max_thrust_change'] * constraint_config['max_thrust'] * 0.75,
                                               lambda u: u - constraint_config['max_thrust_change'] * constraint_config['max_thrust']]
 
         ellipsoid_constraints = list()
