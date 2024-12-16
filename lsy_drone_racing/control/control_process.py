@@ -54,8 +54,6 @@ class ControlProcess(mp.Process):
 
             # compute new action every ratio steps
             if not info['step'] % self._n_actions:
-                start_time = time.perf_counter()
-
                 info['step'] += self._n_actions
 
                 actions = self.ctrl.compute_horizon(obs, info).squeeze()
@@ -64,7 +62,6 @@ class ControlProcess(mp.Process):
                 actions = actions[:, self._delay:self._n_actions+self._delay].T
                 for step_offset, action in enumerate(actions):
                     self._action_queue.put((action, info['step'] + step_offset))
-                print(f'Controller took {time.perf_counter() - start_time}')
 
             # indicate that all currents obs are processed
             self._obs_queue.task_done()

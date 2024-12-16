@@ -33,6 +33,8 @@ import numpy.typing as npt
 from munch import munchify
 import yaml
 
+import time
+
 from lsy_drone_racing.control import BaseController
 from lsy_drone_racing.control.control_process import ControlProcess
 import multiprocessing as mp
@@ -102,7 +104,6 @@ class Controller(BaseController):
         Returns:
             The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
         """
-
         info['step'] = self._tick
 
         # set funky body_rate obs to zero (good guesstimate)
