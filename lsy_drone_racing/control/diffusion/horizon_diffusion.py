@@ -77,7 +77,8 @@ class HorizonDiffusion:
         self.policy.to(self.device)
         self.policy.eval()
 
-        torch.manual_seed(initial_info['run_id'])
+        if 'run_id' in initial_info:
+            torch.manual_seed(initial_info['run_id'])
 
     def compute_horizon(self, obs: dict, info: dict, samples=1) -> npt.NDArray[np.floating]:
         local = True
