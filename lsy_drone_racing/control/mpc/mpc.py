@@ -30,7 +30,7 @@ class MPC:
                  **kwargs
                  ):
 
-        '''Creates task and controller.
+        """Creates task and controller.
 
         Args:
             model (Model): Instance for MPC model.
@@ -44,7 +44,7 @@ class MPC:
             additional_constraints (list): List of additional constraints
             use_gpu (bool): False (use cpu) True (use cuda).
             seed (int): random seed.
-        '''
+        """
 
         for k, v in locals().items():
             if k != 'self' and k != 'kwargs' and '__' not in k:
@@ -82,13 +82,13 @@ class MPC:
 
 
     def close(self):
-        '''Cleans up resources.'''
+        """Cleans up resources."""
         pass
 
     def reset(self):
+        """Prepares for training or evaluation."""
         if __debug__:  # TODO: Introduce reasonable logger
             print(colored('Resetting MPC', 'green'))
-        '''Prepares for training or evaluation.'''
         # Dynamics model.
         # self.set_dynamics_func()
         # CasADi optimizer.
@@ -100,14 +100,14 @@ class MPC:
         self.setup_results_dict()
 
     def set_dynamics_func(self):
-        '''Updates symbolic dynamics with actual control frequency.'''
+        """Updates symbolic dynamics with actual control frequency."""
         self.dynamics_func = rk_discrete(self.model.fc_func,
                                          self.model.nx,
                                          self.model.nu,
                                          self.dt)
 
     def setup_optimizer(self, solver='ipopt', max_iter=None, max_wall_time=None):
-        '''Sets up nonlinear optimization problem.'''
+        """Sets up nonlinear optimization problem."""
         if __debug__:  # TODO
             print(colored(f'Setting up optimizer with {solver}', 'green'))
         nx, nu = self.model.nx, self.model.nu
@@ -225,7 +225,7 @@ class MPC:
                       info: dict=None,
                       force_warm_start: bool=False,
                       ):
-        '''Solves nonlinear mpc problem to get next action.
+        """Solves nonlinear mpc problem to get next action.
 
         Args:
             obs (ndarray): Current state/observation.
@@ -235,7 +235,9 @@ class MPC:
 
         Returns:
             action (ndarray): Input/action to the task/env.
-        '''
+        """
+        start_t = time.perf_counter()
+
         opti_dict = self.opti_dict
         opti = opti_dict['opti']
         x_var = opti_dict['x_var']  # optimization variables
@@ -292,16 +294,16 @@ class MPC:
                 opti.set_initial(u_var, u_guess)
 
         elif self.warmstart:
-            # shift previous solutions by 1 step
+            # shift previous solutions by horizon skip
             x_guess = deepcopy(self.x_prev)
-            u_guess = deepcopy(self.u_prev)
             x_guess[:, :self.T + 1 - self.horizon_skip] = x_guess[:, self.horizon_skip:]
-            u_guess[:, :self.T - self.horizon_skip] = u_guess[:, self.horizon_skip:]
+            x_guess[:, self.T + 1 - self.horizon_skip:] = x_guess[:, -1:]
             opti.set_initial(x_var, x_guess)
+
+            u_guess = deepcopy(self.u_prev)
+            u_guess[:, :self.T - self.horizon_skip] = u_guess[:, self.horizon_skip:]
+            u_guess[:, self.T - self.horizon_skip:] = u_guess[:, -1:]
             opti.set_initial(u_var, u_guess)
-
-
-        time_before = time.perf_counter()
 
         # Solve the optimization problem
         try:
@@ -317,29 +319,12 @@ class MPC:
                 x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
                 input_slack_val, state_slack_val = opti.debug.value(input_slack), opti.debug.value(state_slack)
 
-        if __debug__:
-            time_after = time.perf_counter()
-            print('MPC select_action time: ', time_after - time_before)
-
 
         self.x_prev = x_val
         self.u_prev = u_val
 
         y = np.array(self.model.g_func(x=self.x_prev[:, 1:], # TODO: Check if this 1 is actually a good idea
                                        u=self.u_prev)['g'])
-
-        if self.logs:
-            stats = opti.stats()
-            self.results_dict['horizon_states'].append(deepcopy(self.x_prev))
-            self.results_dict['horizon_inputs'].append(deepcopy(self.u_prev))
-            self.results_dict['horizon_state_slack'].append(deepcopy(state_slack_val))
-            self.results_dict['horizon_input_slack'].append(deepcopy(input_slack_val))
-            self.results_dict['horizon_outputs'].append(deepcopy(y))
-            self.results_dict['horizon_references'].append(deepcopy(goal_states))
-            self.results_dict['t_wall'].append(stats['t_wall_total'])
-            self.results_dict['solution_found'].append(stats['success'])
-            self.results_dict['iter_count'].append(stats['iter_count'])
-            self.results_dict['obj'].append(stats['iterations']['obj'][-1])
 
         # Take the first action from the solved action sequence.
         if u_val.ndim > 1:
@@ -350,6 +335,24 @@ class MPC:
             actions = np.array(u_val)
             states = np.array(x_val)
             outputs = np.array(y)
+
+        end_t = time.perf_counter()
+
+        if self.logs:
+            stats = opti.stats()
+            self.results_dict['horizon_states'].append(deepcopy(self.x_prev))
+            self.results_dict['horizon_inputs'].append(deepcopy(self.u_prev))
+            self.results_dict['horizon_state_slack'].append(deepcopy(state_slack_val))
+            self.results_dict['horizon_input_slack'].append(deepcopy(input_slack_val))
+            self.results_dict['horizon_outputs'].append(deepcopy(y))
+            self.results_dict['horizon_references'].append(deepcopy(goal_states))
+            self.results_dict['t_solver'].append(stats['t_wall_total'])
+            self.results_dict['t_wall'].append(end_t - start_t)
+            self.results_dict['solution_found'].append(stats['success'])
+            self.results_dict['iter_count'].append(stats['iter_count'])
+            self.results_dict['obj'].append(stats['iterations']['obj'][-1])
+
+        # print(f"Logging MPC took {(time.perf_counter() - end_t) * 1000:.2f} ms")
 
         return {'actions': actions, 'states': states, 'outputs': outputs}
 
@@ -367,47 +370,40 @@ class MPC:
         return goal_states  # (nx, T+1).
 
     def setup_results_dict(self):
-        '''Setup the results dictionary to store run information.'''
-        self.results_dict = {'obs': [],
-                             'reward': [],
-                             'done': [],
-                             'info': [],
-                             'action': [],
-                             'horizon_inputs': [],
-                             'horizon_states': [],
-                             'horizon_input_slack': [],
-                             'horizon_state_slack': [],
-                             'horizon_outputs': [],
-                             'horizon_references': [],
-                             'solution_found': [],
-                             'frames': [],
-                             'state_mse': [],
-                             'common_cost': [],
-                             'state': [],
-                             'state_error': [],
-                             't_wall': [],
-                             'iter_count': [],
-                             'obj': [],
-                             }
+        """Setup the results dictionary to store run information."""
+        self.results_dict = {
+            'horizon_inputs': [],
+            'horizon_states': [],
+            'horizon_input_slack': [],
+            'horizon_state_slack': [],
+            'horizon_outputs': [],
+            'horizon_references': [],
+            'solution_found': [],
+            't_wall': [],
+            't_solver': [],
+            'iter_count': [],
+            'obj': [],
+        }
 
     def reset_before_run(self, obs, info=None, env=None):
-        '''Reinitialize just the controller before a new run.
+        """Reinitialize just the controller before a new run.
 
         Args:
             obs (ndarray): The initial observation for the new run.
             info (dict): The first info of the new run.
             env (BenchmarkEnv): The environment to be used for the new run.
-        '''
+        """
         self.reset()
 
-    def wrap_sym(self, X):
-        '''Wrap angle to [-pi, pi] when used in observation.
+    @staticmethod
+    def wrap_sym(X):
+        """Wrap angle to [-pi, pi] when used in observation.
 
         Args:
             X (ndarray): The state to be wrapped.
 
         Returns:
             X_wrapped (ndarray): The wrapped state.
-        '''
+        """
         X_wrapped = cs.fmod(X[0] + cs.pi, 2 * cs.pi) - cs.pi
         return X_wrapped

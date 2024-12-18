@@ -66,6 +66,7 @@ class Controller(BaseController):
         self.CTRL_FREQ = initial_info['env_freq']
         self.CTRL_TIMESTEP = 1 / self.CTRL_FREQ
         self.config = config
+        initial_info['config'] = config
 
         # diffusion (torch) only works with spawn, MPC (casadi) only works with fork
         if config.controller == 'diffusion':
@@ -77,7 +78,7 @@ class Controller(BaseController):
         self._tick = 0
         initial_info['step'] = self._tick - config.n_actions
 
-        self.ctrl = ControlProcess(initial_obs=initial_obs, initial_info=initial_info, config=config, daemon=False)
+        self.ctrl = ControlProcess(initial_obs=initial_obs, initial_info=initial_info, daemon=False)
         self.ctrl.start()
 
         # start precomputing first actions

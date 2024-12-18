@@ -27,6 +27,8 @@ Tips:
 
 from __future__ import annotations  # Python 3.10 type hints
 
+import time
+
 import numpy as np
 import numpy.typing as npt
 
@@ -36,13 +38,13 @@ import hydra
 import dill
 from lsy_drone_racing.control.diffusion.base_workspace import BaseWorkspace
 from lsy_drone_racing.control.diffusion.pytorch_util import dict_apply
-from lsy_drone_racing.control.utils import to_local_obs, to_global_action
+from lsy_drone_racing.control.utils import to_local_obs, to_global_action, obs_from_dict
 
 
 class HorizonDiffusion:
     """Template controller class."""
 
-    def __init__(self, initial_obs: dict, initial_info: dict, config: dict | None = None):
+    def __init__(self, initial_obs: dict, initial_info: dict):
         """Initialization of the controller.
 
         INSTRUCTIONS:
@@ -55,8 +57,16 @@ class HorizonDiffusion:
                 observation space for details.
             initial_info: Additional environment information from the reset.
         """
+        config = initial_info['config']
 
         self.device = torch.device(config.diffusion.device)
+        self.logs = True
+        self.results_dict = {'horizon_states': [],
+                             'horizon_actions': [],
+                             't_wall': [],
+                             'horizon_samples': [],
+                             }
+
         checkpoint = 'models/diffusion/latest.ckpt'
         output_dir = 'output/diffusion_eval_output'
 
@@ -80,28 +90,36 @@ class HorizonDiffusion:
         if 'run_id' in initial_info:
             torch.manual_seed(initial_info['run_id'])
 
-    def compute_horizon(self, obs: dict, info: dict, samples=1) -> npt.NDArray[np.floating]:
-        local = True
-        if local:
-            state = to_local_obs(pos=obs['pos'],
-                                 vel=obs['vel'],
-                                 rpy=obs['rpy'],
-                                 ang_vel=obs['ang_vel'],
-                                 obstacles_pos=obs['obstacles_pos'].T,
-                                 gates_pos=obs['gates_pos'].T,
-                                 gates_rpy=obs['gates_rpy'].T,
-                                 target_gate=obs['target_gate'],
-                                 )
-        else:
-            pos = obs['pos']
-            vel = obs['vel']
-            rpy = obs['rpy']
-            body_rates = obs['ang_vel']
-            state = np.hstack([pos, vel, rpy, body_rates, obs['target_gate'], np.hstack(obs['obstacles_pos']), np.hstack(obs['gates_pos']), np.hstack(obs['gates_rpy'])]).reshape((1, 1, -1))
+        self.results_dict['seed'] = torch.seed()
 
-        actions = self.sample_actions(state, samples)
-        if local:
-            actions = to_global_action(actions, obs['rpy'], obs['pos'])
+    def compute_horizon(self, obs: dict, info: dict, samples=5) -> npt.NDArray[np.floating]:
+        # start timer
+        start_t = time.perf_counter()
+
+        # transform into local frame
+        state = to_local_obs(pos=obs['pos'],
+                             vel=obs['vel'],
+                             rpy=obs['rpy'],
+                             ang_vel=obs['ang_vel'],
+                             obstacles_pos=obs['obstacles_pos'].T,
+                             gates_pos=obs['gates_pos'].T,
+                             gates_rpy=obs['gates_rpy'].T,
+                             target_gate=obs['target_gate'],
+                             )
+
+        samples = self.sample_actions(state, samples)
+        samples = to_global_action(samples, obs['rpy'], obs['pos'])
+
+        # TODO: Find action most similar to last action
+        actions = samples[0]
+
+        end_t = time.perf_counter()
+
+        if self.logs:
+            self.results_dict['horizon_states'].append(obs_from_dict(obs)[:, None])
+            self.results_dict['horizon_actions'].append(actions)
+            self.results_dict['horizon_samples'].append(samples)
+            self.results_dict['t_wall'].append(end_t - start_t)
 
         return actions
 

@@ -42,7 +42,7 @@ if __name__ == "__main__":
             out_file.copy(source=in_file['config'], dest=out_file)
             out_file.copy(source=in_file[f'track_{args.track}'], dest=f'track_{args.track}')
 
-        mpc_config = to_dict(out_file['config'])
+        config = to_dict(out_file['config'])
         track_grp = out_file[f'track_{args.track}']
         track_config = track_grp['config']
 
@@ -55,21 +55,21 @@ if __name__ == "__main__":
             np.pi/8, np.pi/8, np.pi/8,
             0.02, 0.02, 0.02, 0.02])
         lower_state_bound = np.array([
-            -3.0, -3.0, -mpc_config['constraints']['min_z'],
+            -3.0, -3.0, -config['mpc']['constraints']['min_z'],
             -2.0, -2.0, -2.0,
             -np.pi, -np.pi, -np.inf,
             -10.0, -10.0, -10.0,
-            *[mpc_config['constraints']['min_thrust']]*4])
+            *[config['mpc']['constraints']['min_thrust']]*4])
         upper_state_bound = np.array([
             3.0, 3.0, 2.5,
             3.0, 3.0, 3.0,
             np.pi, np.pi, np.inf,
             10.0, 10.0, 10.0,
-            *[mpc_config['constraints']['max_thrust']]*4])
+            *[config['mpc']['constraints']['max_thrust']]*4])
 
         initial_info = {
-            'env_freq': mpc_config['env_freq'],
-            'config': mpc_config,
+            'env_freq': config['env_freq'],
+            'config': config
         }
 
         initial_obs = track_config
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         gate_prox = track_config['gate_prox']
         next_gate_idx = track_config['next_gate']
 
-        ctrl = MPCControl(initial_info, initial_obs=initial_obs, config=mpc_config)
+        ctrl = MPCControl(initial_info, initial_obs=initial_obs)
 
         worker_config = {
             'seed': args.seed,

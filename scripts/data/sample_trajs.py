@@ -21,9 +21,9 @@ def dict_to_group(root, name: str, data: dict):
 
 
 if __name__ == "__main__":
-    path = "config/mpc.yaml"
+    path = "config/generate.yaml"
     with open(path, "r") as file:
-        mpc_config = munchify(yaml.safe_load(file))['mpc']
+        config = munchify(yaml.safe_load(file))
 
     with open('config/multi_modality.toml', "r") as file:
         track_config = munchify(toml.load(file))
@@ -31,9 +31,9 @@ if __name__ == "__main__":
     f = h5py.File(hdf_path, 'w', libver='latest')
 
     # add this so it will also get saved
-    mpc_config['env_freq'] = track_config.env.freq
+    config['env_freq'] = track_config.env.freq
 
-    dict_to_group(f, 'config', mpc_config)
+    dict_to_group(f, 'config', config)
 
     for track_i in range(NUM_TRACKS):
         # TODO: Randomize gate, obstacle and starting positions
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
         initial_info = {
             'env_freq': track_config.env.freq,
-            'config': mpc_config,
+            'config': config
         }
 
         initial_obs = {
@@ -61,14 +61,14 @@ if __name__ == "__main__":
         planner = MinsnapPlanner(
             initial_info=initial_info,
             initial_obs=initial_obs,
-            speed=mpc_config.planner.speed,
-            gate_time_constant=mpc_config.planner.gate_time_const,
+            speed=config.mpc.planner.speed,
+            gate_time_constant=config.mpc.planner.gate_time_const,
         )
 
         state = track_config.env.track.drone
         state = np.concatenate([state['pos'], state['vel'], state['rpy'], state['ang_vel']])
 
-        ctrl = MPCControl(initial_info, initial_obs, mpc_config)
+        ctrl = MPCControl(initial_info, initial_obs)
 
         # loop mpc through entire track
         for step in range(np.shape(planner.ref)[1]):

@@ -63,7 +63,7 @@ policy:
   action_dim: ${action_dim}
   n_action_steps: ${eval:'${n_action_steps}+${n_latency_steps}'}
   n_obs_steps: ${n_obs_steps}
-  num_inference_steps: 5 # 100
+  num_inference_steps: 10 # 100
   obs_as_local_cond: ${obs_as_local_cond}
   obs_as_global_cond: ${obs_as_global_cond}
   pred_action_steps_only: ${pred_action_steps_only}
@@ -109,7 +109,7 @@ training:
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 5000 # actual steps, not episodes
-  num_epochs: 100
+  num_epochs: 150
   gradient_accumulate_every: 1
   use_ema: True
   # training loop control
@@ -157,7 +157,7 @@ hydra:
     subdir: ${hydra.job.num}
   sweeper:
     params:
-      training.seed: 11, 22
+      training.seed: 11, 22, 33
       # policy.model.kernel_size: 5
       # horizon: 8
       # policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"

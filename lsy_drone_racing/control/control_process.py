@@ -1,6 +1,7 @@
 import multiprocessing as mp
 import queue
 import time
+import numpy as np
 
 from lsy_drone_racing.control.diffusion.horizon_diffusion import HorizonDiffusion
 from lsy_drone_racing.control.mpc.horizon_mpc import HorizonMPC
@@ -12,14 +13,15 @@ class ControlProcess(mp.Process):
 
     """
 
-    def __init__(self, initial_info, initial_obs, config, *args, **kwargs):
+    def __init__(self, initial_info, initial_obs, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        config = initial_info['config']
         base_controller = config.controller
 
         if base_controller == 'diffusion':
-            self.ctrl = HorizonDiffusion(initial_obs, initial_info, config)
+            self.ctrl = HorizonDiffusion(initial_obs, initial_info)
         elif base_controller == 'mpc':
-            self.ctrl = HorizonMPC(initial_obs, initial_info, config)
+            self.ctrl = HorizonMPC(initial_obs, initial_info)
         else:
             raise RuntimeError(f'Controller type {base_controller} not supported!')
 
@@ -31,6 +33,9 @@ class ControlProcess(mp.Process):
 
         self._n_actions = config.n_actions
         self._delay = config.offset
+
+        self._logging_path = config.logging_path
+
         assert self._n_actions > 0, "Amount of environment steps per control step must be at least 1"
         assert self._delay >= 0, "Action delay cannot be negative"
 
@@ -49,7 +54,13 @@ class ControlProcess(mp.Process):
             try:
                 obs, info = self._obs_queue.get(block=True, timeout=1) # crash self if no obs
             except queue.Empty:
-                print('Worker is done.')
+                # write logs on termination
+                for key in self.ctrl.unwrapped.results_dict:
+                    self.ctrl.unwrapped.results_dict[key] = np.array(self.ctrl.unwrapped.results_dict[key])
+
+                np.savez_compressed(self._logging_path, **self.ctrl.unwrapped.results_dict)
+
+                print(f'[WORK] Saved controller logs to: {self._logging_path}')
                 return 0
 
             # compute new action every ratio steps
@@ -63,8 +74,10 @@ class ControlProcess(mp.Process):
                 for step_offset, action in enumerate(actions):
                     self._action_queue.put((action, info['step'] + step_offset))
 
+
             # indicate that all currents obs are processed
             self._obs_queue.task_done()
+
 
 
 

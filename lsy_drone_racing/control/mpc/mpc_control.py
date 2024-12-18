@@ -9,7 +9,7 @@ from lsy_drone_racing.control.mpc.constraints import obstacle_constraints, gate_
 
 
 class MPCControl:
-    def __init__(self, initial_info: dict, initial_obs: dict, config):
+    def __init__(self, initial_info: dict, initial_obs: dict):
         """Initialization of the controller.
 
         INSTRUCTIONS:
@@ -23,7 +23,7 @@ class MPCControl:
             initial_info: Additional environment information from the reset.
             config: MPC configuration
         """
-        self.config = config
+        self.config = initial_info['config']
         mpc_config = self.config['mpc']
 
         initial_info['config'] = mpc_config
@@ -58,7 +58,7 @@ class MPCControl:
                         horizon_skip=self.config['n_actions'],
                         max_wall_time=mpc_config['max_wall_time']*self.config['n_actions']/initial_info['env_freq'],
                         max_iter=mpc_config['max_iter'],
-                        logs=False,
+                        logs=self.config['logs'],
         )
 
         self.forces = initial_info['init_thrusts'] if 'init_thrusts' in initial_info and initial_info[
@@ -127,3 +127,7 @@ class MPCControl:
             remaining_series = reference
 
         return remaining_series
+
+    @property
+    def unwrapped(self):
+        return self.ctrl

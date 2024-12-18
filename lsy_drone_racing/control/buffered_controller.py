@@ -51,11 +51,12 @@ class BufferedController(BaseController):
             config = munchify(yaml.safe_load(file))
 
         base_controller = config.controller
+        initial_info['config'] = config
 
         if base_controller == 'diffusion':
-            self.ctrl = HorizonDiffusion(initial_obs, initial_info, config)
+            self.ctrl = HorizonDiffusion(initial_obs, initial_info)
         elif base_controller == 'mpc':
-            self.ctrl = HorizonMPC(initial_obs, initial_info, config)
+            self.ctrl = HorizonMPC(initial_obs, initial_info)
         else:
             raise RuntimeError(f'Controller type {base_controller} not supported!')
 

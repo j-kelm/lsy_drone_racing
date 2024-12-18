@@ -45,7 +45,7 @@ from lsy_drone_racing.control.utils import obs_from_dict
 class HorizonMPC:
     """Template controller class."""
 
-    def __init__(self, initial_obs: dict, initial_info: dict, config: dict):
+    def __init__(self, initial_obs: dict, initial_info: dict):
         """Initialization of the controller.
 
         INSTRUCTIONS:
@@ -58,9 +58,7 @@ class HorizonMPC:
                 observation space for details.
             initial_info: Additional environment information from the reset.
         """
-        path = "config/mpc.yaml"
-        with open(path, "r") as file:
-            config = munchify(yaml.safe_load(file))
+        config = initial_info['config']
 
         self.planner = MinsnapPlanner(initial_info=initial_info,
                                       initial_obs=initial_obs,
@@ -69,7 +67,7 @@ class HorizonMPC:
                                       )
 
 
-        self.mpc_ctrl = MPCControl(initial_info=initial_info,initial_obs=initial_obs, config=config)
+        self.mpc_ctrl = MPCControl(initial_info=initial_info,initial_obs=initial_obs)
 
         if p.isConnected():
             for i in range(self.planner.ref.shape[1]-10):
@@ -95,4 +93,4 @@ class HorizonMPC:
 
     @property
     def unwrapped(self):
-        return self.mpc_ctrl
+        return self.mpc_ctrl.unwrapped
