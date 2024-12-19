@@ -81,7 +81,7 @@ ema:
   max_value: 0.9999
 
 dataloader:
-  batch_size: 128
+  batch_size: 256
   num_workers: 1
   shuffle: True
   pin_memory: True
@@ -96,7 +96,7 @@ val_dataloader:
 
 optimizer:
   _target_: torch.optim.AdamW
-  lr: 5.0e-6
+  lr: 1.0e-5
   betas: [0.95, 0.999]
   eps: 1.0e-8
   weight_decay: 1.0e-6
@@ -157,9 +157,9 @@ hydra:
     subdir: ${hydra.job.num}
   sweeper:
     params:
-      dataloader.batch_size: 128, 256
-      optimizer.lr: 5.0e-6, 1.0e-5
-      #training.seed: 11, 22, 33
+      dataloader.batch_size: 256
+      optimizer.lr: 1.0e-5
+      training.seed: 11, 22
       # policy.model.kernel_size: 5
       # horizon: 8
-      # policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"
+      policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"
