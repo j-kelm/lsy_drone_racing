@@ -81,7 +81,7 @@ ema:
   max_value: 0.9999
 
 dataloader:
-  batch_size: 256
+  batch_size: 128
   num_workers: 1
   shuffle: True
   pin_memory: True
@@ -157,7 +157,9 @@ hydra:
     subdir: ${hydra.job.num}
   sweeper:
     params:
-      training.seed: 11, 22, 33
+      dataloader.batch_size: 128, 256
+      optimizer.lr: 5.0e-6, 1.0e-5
+      #training.seed: 11, 22, 33
       # policy.model.kernel_size: 5
       # horizon: 8
       # policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"

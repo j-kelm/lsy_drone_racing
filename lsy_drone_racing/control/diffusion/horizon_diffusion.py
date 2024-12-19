@@ -59,6 +59,9 @@ class HorizonDiffusion:
         """
         config = initial_info['config']
 
+        self.n_actions = config['n_actions']
+        self.offset = config['offset']
+
         self.device = torch.device(config.diffusion.device)
         self.logs = True
         self.results_dict = {'horizon_states': [],
@@ -92,7 +95,8 @@ class HorizonDiffusion:
 
         self.results_dict['seed'] = torch.seed()
 
-    def compute_horizon(self, obs: dict, info: dict, samples=5) -> npt.NDArray[np.floating]:
+
+    def compute_horizon(self, obs: dict, info: dict, samples=25) -> npt.NDArray[np.floating]:
         # start timer
         start_t = time.perf_counter()
 
@@ -111,10 +115,18 @@ class HorizonDiffusion:
         samples = to_global_action(samples, obs['rpy'], obs['pos'])
 
         # TODO: Find action most similar to last action
-        actions = samples[0]
+        if len(self.results_dict['horizon_actions']):
+            differences = np.linalg.norm(samples[:, :, :self.n_actions] - self.results_dict['horizon_actions'][-1][:, self.offset:self.offset+self.n_actions], axis=(1, 2))
+            closest_index = np.argmin(differences)
+            actions = samples[closest_index]
+        else:
+            actions = samples[0]
+
+        # actions = samples[0]
+
+
 
         end_t = time.perf_counter()
-
         if self.logs:
             self.results_dict['horizon_states'].append(obs_from_dict(obs)[:, None])
             self.results_dict['horizon_actions'].append(actions)

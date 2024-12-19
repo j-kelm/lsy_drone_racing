@@ -58,8 +58,10 @@ class ControlProcess(mp.Process):
                 for key in self.ctrl.unwrapped.results_dict:
                     self.ctrl.unwrapped.results_dict[key] = np.array(self.ctrl.unwrapped.results_dict[key])
 
-                np.savez_compressed(self._logging_path, **self.ctrl.unwrapped.results_dict)
+                self.ctrl.unwrapped.results_dict['n_actions'] = self._n_actions
+                self.ctrl.unwrapped.results_dict['offset'] = self._delay
 
+                np.savez_compressed(self._logging_path, **self.ctrl.unwrapped.results_dict)
                 print(f'[WORK] Saved controller logs to: {self._logging_path}')
                 return 0
 

@@ -1,8 +1,8 @@
-controller: mpc
+controller: diffusion
 
-n_actions: 2
+n_actions: 3
 n_initial_actions: 16  # only used for buffered
-offset: 2
+offset: 3
 wait_time_ratio: 20000.2  # only used for async
 logs: true
 logging_path: "output/logs/diffusion_run.npz"
