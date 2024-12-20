@@ -1,9 +1,9 @@
-controller: diffusion
+controller: mpc
 
-n_actions: 3
+n_actions: 2
 n_initial_actions: 16  # only used for buffered
-offset: 3
-wait_time_ratio: 20000.2  # only used for async
+offset: 2
+wait_time_ratio: 0.2  # only used for async
 logs: true
 logging_path: "output/logs/diffusion_run.npz"
 
@@ -21,20 +21,20 @@ mpc:
   ]
 
   r: [
-    1.0e-2, 1.0e-2, 1.0e-2, 1.0e-2,  # 5.0e-1, 5.0e-1, 5.0e-1, 5.0e-1,  #
+    5.0e-1, 5.0e-1, 5.0e-1, 5.0e-1,
   ]
 
   # horizon_skip: 4  # deprecated because dangerous
   soft_penalty: 5.0e+2
   horizon_sec: 0.8
   gate_prioritization: 4.0
-  max_iter: 5
-  max_wall_time: 20000.7
+  max_iter: 4
+  max_wall_time: 0.7
 
   constraints:
-    min_thrust: 0.03  # N, single rotor
+    min_thrust: 0.05  # N, single rotor
     max_thrust: 0.12  # N, single rotor
-    max_thrust_change: 1.0  # max thrust/s, single rotor
+    max_thrust_change: 4.0  # max thrust/s, single rotor
     gate_r: 0.15  # m
     obstacle_r: 0.17  # m
     min_z: 0.07  # m

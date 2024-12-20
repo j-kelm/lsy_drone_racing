@@ -40,10 +40,9 @@ offset = flight_data['offset']
 
 # plot states
 states = flight_data['horizon_states']
-
 timesteps = np.linspace(start=0, stop=len(states)/FREQ * n_actions, num=len(states))
 
-fig, axs = plt.subplots(states.shape[1], sharex=True, figsize=(30, 20))
+fig, axs = plt.subplots(states.shape[1], sharex=True, figsize=(20, 15))
 fig.suptitle(f'States')
 for i, ax in enumerate(axs):
     ax.set_title(state_labels[i])
@@ -56,7 +55,7 @@ fig.legend(loc='lower right')
 # plot inputs (if possible)
 if 'horizon_inputs' in flight_data:
     inputs = flight_data['horizon_inputs']
-    fig, axs = plt.subplots(inputs.shape[1], sharex=True, figsize=(30, 20))
+    fig, axs = plt.subplots(inputs.shape[1], sharex=True, figsize=(20, 15))
     fig.suptitle(f'Inputs')
     for i, ax in enumerate(axs):
         ax.set_title(input_labels[i])
@@ -73,12 +72,26 @@ else:
 
 actions = actions[:, :, offset:offset+n_actions].swapaxes(1, 2).reshape((-1, 13, 1), order='C')
 timesteps = np.linspace(start=0, stop=len(actions)/FREQ * n_actions, num=len(actions))
-fig, axs = plt.subplots(actions.shape[1], sharex=True, figsize=(30, 20))
+fig, axs = plt.subplots(actions.shape[1], sharex=True, figsize=(20, 15))
 fig.suptitle(f'Actions')
 for i, ax in enumerate(axs):
     ax.set_title(action_labels[i])
     ax.set_ylabel(action_units[i], rotation=0)
     ax.plot(timesteps, actions[:, i, 0], color='g', label=None if i else 'MPC')
+
+axs[-1].set_xlabel('s')
+fig.legend(loc='lower right')
+
+# plot timings
+timings = flight_data['t_wall'] * 1000
+timesteps = np.linspace(start=0, stop=len(states)/FREQ * n_actions, num=len(states))
+
+fig, axs = plt.subplots(2, sharex=True, figsize=(20, 15))
+fig.suptitle(f'Solution Times')
+for i, ax in enumerate(axs):
+    ax.set_title('$t_{sol}$')
+    ax.set_ylabel('$ms$', rotation=0)
+    ax.plot(timesteps, timings, color='g', label=None if i else 'MPC')
 
 axs[-1].set_xlabel('s')
 fig.legend(loc='lower right')
