@@ -96,7 +96,7 @@ class HorizonDiffusion:
         self.results_dict['seed'] = torch.seed()
 
 
-    def compute_horizon(self, obs: dict, info: dict, samples=25) -> npt.NDArray[np.floating]:
+    def compute_horizon(self, obs: dict, info: dict, samples=100) -> npt.NDArray[np.floating]:
         # start timer
         start_t = time.perf_counter()
 
@@ -115,12 +115,19 @@ class HorizonDiffusion:
         samples = to_global_action(samples, obs['rpy'], obs['pos'])
 
         # TODO: Find action most similar to last action
-        if len(self.results_dict['horizon_actions']):
-            differences = np.linalg.norm(samples[:, :, :self.n_actions] - self.results_dict['horizon_actions'][-1][:, self.offset:self.offset+self.n_actions], axis=(1, 2))
-            closest_index = np.argmin(differences)
-            actions = samples[closest_index]
-        else:
-            actions = samples[0]
+        # if len(self.results_dict['horizon_actions']):
+        #     differences = samples[:, :, :self.n_actions] - self.results_dict['horizon_actions'][-1][:, self.offset:self.offset+self.n_actions]
+        #
+        #     # normalize differences
+        #     differences_max = differences.max(axis=0)
+        #     differences_min = differences.min(axis=0)
+        #     differences_scaled = (differences - differences_min)/(differences_max - differences_min + np.full_like(differences_min, 1.0e-8))
+        #     differences_norm = np.linalg.norm(differences_scaled, axis=(1,2))
+        #
+        #     closest_index = np.argmin(differences_norm)
+        #     actions = samples[closest_index]
+        # else:
+        #     actions = samples[0]
 
         # actions = samples[0]
 

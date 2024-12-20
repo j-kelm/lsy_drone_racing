@@ -34,7 +34,7 @@ class ControlProcess(mp.Process):
         self._n_actions = config.n_actions
         self._delay = config.offset
 
-        self._logging_path = config.logging_path
+        self._logging_path = config.logging_path if 'logging_path' in config and config.logging_path != 'None' else None
 
         assert self._n_actions > 0, "Amount of environment steps per control step must be at least 1"
         assert self._delay >= 0, "Action delay cannot be negative"
@@ -54,15 +54,17 @@ class ControlProcess(mp.Process):
             try:
                 obs, info = self._obs_queue.get(block=True, timeout=1) # crash self if no obs
             except queue.Empty:
-                # write logs on termination
-                for key in self.ctrl.unwrapped.results_dict:
-                    self.ctrl.unwrapped.results_dict[key] = np.array(self.ctrl.unwrapped.results_dict[key])
+                if self._logging_path is not None:
+                    # write logs on termination
+                    for key in self.ctrl.unwrapped.results_dict:
+                        self.ctrl.unwrapped.results_dict[key] = np.array(self.ctrl.unwrapped.results_dict[key])
 
-                self.ctrl.unwrapped.results_dict['n_actions'] = self._n_actions
-                self.ctrl.unwrapped.results_dict['offset'] = self._delay
+                    self.ctrl.unwrapped.results_dict['n_actions'] = self._n_actions
+                    self.ctrl.unwrapped.results_dict['offset'] = self._delay
 
-                np.savez_compressed(self._logging_path, **self.ctrl.unwrapped.results_dict)
-                print(f'[WORK] Saved controller logs to: {self._logging_path}')
+                    np.savez_compressed(self._logging_path, **self.ctrl.unwrapped.results_dict)
+                    print(f'[WORK] Saved controller logs to: {self._logging_path}')
+
                 return 0
 
             # compute new action every ratio steps

@@ -108,7 +108,7 @@ class Controller(BaseController):
         info['step'] = self._tick
 
         # set funky body_rate obs to zero (good guesstimate)
-        obs['ang_vel'] *= np.pi / 180 # = np.zeros(3)  # TODO: fix!
+        # obs['ang_vel'] *= np.pi / 180 # = np.zeros(3)  # TODO: fix!
 
         # only put new obs and retrieve action to minimize control delay
         self.ctrl.put_obs(obs, info, block=False)
