@@ -352,6 +352,7 @@ class MPC:
             self.results_dict['iter_count'].append(stats['iter_count'])
             self.results_dict['obj'].append(stats['iterations']['obj'][-1])
 
+
         # print(f"Logging MPC took {(time.perf_counter() - end_t) * 1000:.2f} ms")
 
         return {'actions': actions, 'states': states, 'outputs': outputs}

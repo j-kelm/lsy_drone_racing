@@ -4,7 +4,7 @@ from numpy.random import default_rng
 
 HORIZON = 8
 
-states = np.load("output/race_data.npz", allow_pickle=True)
+states = np.load("output/training_data.npz", allow_pickle=True)
 outputs = states['actions']
 
 

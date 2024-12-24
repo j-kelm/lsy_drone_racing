@@ -4,6 +4,7 @@ import numpy as np
 import h5py
 import os
 import argparse
+from datetime import datetime
 
 from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 
@@ -49,9 +50,9 @@ if __name__ == "__main__":
         # get random generator and seed
         rng = np.random.default_rng(seed=args.seed)
         randomizer_range = np.array([
-            0.25, 0.25, 0.25,
-            0.25, 0.25, 0.25,
-            np.pi/6, np.pi/6, np.pi/2,
+            0.3, 0.3, 0.3,
+            0.3, 0.3, 0.3,
+            np.pi/4, np.pi/4, np.pi/2,
             np.pi/8, np.pi/8, np.pi/8,
             0.02, 0.02, 0.02, 0.02])
         lower_state_bound = np.array([
@@ -100,7 +101,7 @@ if __name__ == "__main__":
             state_grp = worker_grp.require_group(f'point_{init_i}')
             dict_to_group(state_grp, 'config', state_config)
 
-            print(f'[WORKER{args.seed}] Step {init_i}')
+            print(f'[{datetime.now()} | WORKER{args.seed}] Step {init_i}')
 
             for run in range(args.runs):
                 # randomize initial state
@@ -128,8 +129,8 @@ if __name__ == "__main__":
 
                     # add noise to dynamics
                     state = horizons['states'][:, 1]
-                    lower_bound = np.clip(state - 0.1 * randomizer_range, lower_state_bound, upper_state_bound)
-                    upper_bound = np.clip(state + 0.1 * randomizer_range, lower_state_bound, upper_state_bound)
+                    lower_bound = np.clip(state - 0.05 * randomizer_range, lower_state_bound, upper_state_bound)
+                    upper_bound = np.clip(state + 0.05 * randomizer_range, lower_state_bound, upper_state_bound)
                     state = rng.uniform(lower_bound, upper_bound, state.size)
 
                     state = state[:12]
@@ -157,7 +158,7 @@ if __name__ == "__main__":
 
                 dict_to_group(state_grp, f'snippet_{run}', result)
 
-    print(f'[WORKER{args.seed}] DONE')
+    print(f'[{datetime.now()} | WORKER{args.seed}] DONE')
 
 
 

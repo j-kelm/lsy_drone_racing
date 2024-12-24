@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Run the simulation N times and save the results as 'submission.csv'."""
-    n_runs = 100
+    n_runs = 200
     config = load_config(Path(__file__).parents[1] / "config/multi_modality.toml")
     ep_times = simulate(
         config="multi_modality.toml", controller=config.controller.file, n_runs=n_runs, gui=False

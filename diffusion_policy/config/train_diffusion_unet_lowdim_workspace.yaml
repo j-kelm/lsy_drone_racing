@@ -103,13 +103,13 @@ optimizer:
 
 training:
   device: "cuda:0"
-  seed: 42
+  seed: 11
   debug: False
   resume: False # True
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 5000 # actual steps, not episodes
-  num_epochs: 150
+  num_epochs: 100
   gradient_accumulate_every: 1
   use_ema: True
   # training loop control
@@ -157,9 +157,9 @@ hydra:
     subdir: ${hydra.job.num}
   sweeper:
     params:
-      dataloader.batch_size: 256
+      dataloader.batch_size: 256, 512
       optimizer.lr: 1.0e-5
-      training.seed: 11, 22
+      # training.seed: 11, 22
       # policy.model.kernel_size: 5
       # horizon: 8
-      policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"
+      # policy.model.down_dims: "[128, 256, 512], [256, 512, 1024]"

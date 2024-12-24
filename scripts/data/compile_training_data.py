@@ -5,14 +5,14 @@ from lsy_drone_racing.control.mpc.mpc_utils import states_for_obs, outputs_for_a
 from lsy_drone_racing.control.utils import to_local_obs, to_local_action
 
 hdf_path = "output/merged.hdf5"
-output_path = "output/race_data.npz"
+output_path = "output/training_data.npz"
 
 
 LAST_GATE_INDEX = 0 # 0
 N_LATENCY_STEPS = 0 # 0
 PREDICTION_HORIZON = 8 + N_LATENCY_STEPS
 MAX_SNIPPET_LENGTH = 48
-MAX_STATE_SLACK = 1e10 # 1e-1
+MAX_STATE_SLACK = 1e-1
 MAX_INPUT_SLACK = 1e10 # 1e-1
 MAX_OBJECTIVE = 1e10 # 5e3
 

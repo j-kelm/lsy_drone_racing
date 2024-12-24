@@ -1,11 +1,11 @@
-controller: mpc
+controller: diffusion
 
 n_actions: 2
 n_initial_actions: 16  # only used for buffered
 offset: 2
-wait_time_ratio: 0.2  # only used for async
-logs: true
-logging_path: "output/logs/diffusion_run.npz"
+wait_time_ratio: 2000.2  # only used for async
+logs: false # true
+logging_path: None # "output/logs/diffusion_run.npz"
 
 diffusion:
   inference_steps: 10  # DDIM
@@ -15,26 +15,25 @@ mpc:
   q: [
     15.0, 15.0, 15.0,
     0.0, 0.0, 0.0,
-    0.1, 0.1, 0.00,
-    5.0e-1, 5.0e-1, 5.0e-1,
-    0.01, 0.01, 0.01, 0.01,
+    0.005, 0.005, 0.00,
+    5.0e-2, 5.0e-2, 1.0e-3,
+    0.001, 0.001, 0.001, 0.001,
   ]
 
   r: [
     5.0e-1, 5.0e-1, 5.0e-1, 5.0e-1,
   ]
 
-  # horizon_skip: 4  # deprecated because dangerous
   soft_penalty: 5.0e+2
   horizon_sec: 0.8
-  gate_prioritization: 4.0
-  max_iter: 4
-  max_wall_time: 0.7
+  gate_prioritization: 3.0
+  max_iter: 200
+  max_wall_time: 600
 
   constraints:
-    min_thrust: 0.05  # N, single rotor
+    min_thrust: 0.04  # N, single rotor
     max_thrust: 0.12  # N, single rotor
-    max_thrust_change: 4.0  # max thrust/s, single rotor
+    max_thrust_change: 6.0  # max thrust/s, single rotor
     gate_r: 0.15  # m
     obstacle_r: 0.17  # m
     min_z: 0.07  # m
@@ -42,7 +41,7 @@ mpc:
 
   planner:
     speed: 1.0  # m/s nominal
-    gate_time_const: 0.1
+    gate_time_const: 0.2
 
   model:
     'quadrotor_mass': 0.03454
