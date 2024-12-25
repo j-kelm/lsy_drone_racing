@@ -181,6 +181,10 @@ class DroneRacingDeployEnv(gymnasium.Env):
         """Close the environment by stopping the drone and landing back at the starting position."""
         RETURN_HEIGHT = 1.75  # m
         BREAKING_DISTANCE = 1.0  # m
+        BREAKING_DURATION = 4.0  # s
+        RETURN_DURATION = 5.0  # s
+        LAND_DURATION = 4.5  # s
+
 
         try:  # prevent hanging process if drone not reachable   
             self.cf.notifySetpointsStop()
@@ -188,15 +192,15 @@ class DroneRacingDeployEnv(gymnasium.Env):
             
             return_pos = obs['pos'] + obs['vel']/(np.linalg.norm(obs['vel']) + 1e-8) * BREAKING_DISTANCE
             return_pos[2] = RETURN_HEIGHT
-            self.cf.goTo(goal = return_pos, yaw=0, duration=4)
-            time.sleep(2.5)
+            self.cf.goTo(goal = return_pos, yaw=0, duration=BREAKING_DURATION)
+            time.sleep(BREAKING_DURATION - 1)
 
             return_pos[:2] = self.config.env.track.drone.pos[:2]
-            self.cf.goTo(goal=return_pos, yaw=0, duration=4)
-            time.sleep(4)
+            self.cf.goTo(goal=return_pos, yaw=0, duration=RETURN_DURATION)
+            time.sleep(RETURN_DURATION)
 
-            self.cf.land(self.config.env.track.drone.pos[2], 4.5)
-            time.sleep(4.25)
+            self.cf.land(self.config.env.track.drone.pos[2], LAND_DURATION)
+            # time.sleep(4.5)
         except Exception as e:
             logger.error('Cannot return home: ' + str(e))
 

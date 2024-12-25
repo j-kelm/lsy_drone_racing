@@ -108,7 +108,8 @@ class Controller(BaseController):
         info['step'] = self._tick
 
         # set funky body_rate obs to zero (good guesstimate)
-        # obs['ang_vel'] *= np.pi / 180 # = np.zeros(3)  # TODO: fix!
+        # obs['ang_vel'] *= np.pi / 180 # TODO: fix!
+        # obs['ang_vel'] = np.zeros(3)
 
         # only put new obs and retrieve action to minimize control delay
         self.ctrl.put_obs(obs, info, block=False)
@@ -141,4 +142,7 @@ class Controller(BaseController):
         pass
 
     def reset(self):
-        pass
+        print('[MAIN] Joining worker...')
+        self.ctrl.close()
+        self.ctrl.join()
+        print('[MAIN] Worker joined.')

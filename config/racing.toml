@@ -10,11 +10,11 @@ config = "mpc.yaml"
 [deploy]
 ### Settings only relevant for deployment
 # Whether to check if gate and obstacle positions observed by vicon are within the limits defined down below.
-check_race_track = true
+check_race_track = false
 # Whether to check if the drone start position is within the limits specified down below.
 check_drone_start_pos = true
 # Lets you practice your controller without putting up gates & obstacles, assumes nominal positions given below.
-practice_without_track_objects = true
+practice_without_track_objects = false
 
 
 [sim]
@@ -67,16 +67,16 @@ rpy = [0.0, 0.0, 3.14]
 
 # Obstacle height: 1.4m. Height is measured from the ground to the top of the obstacle.
 [[env.track.obstacles]]
-pos = [1.0, -0.5, 1.4]
+pos = [1.0, -0.5, 0.84]
 [[env.track.obstacles]]
-pos = [0.5, -1.5, 1.4]
+pos = [0.5, -1.5, 0.84]
 [[env.track.obstacles]]
-pos = [0.0, 1.0, 1.4]
+pos = [0.0, 1.0, 0.84]
 [[env.track.obstacles]]
-pos = [-0.5, 0.0, 1.4]
+pos = [-0.5, 0.0, 0.84]
 
 [env.track.drone]
-pos = [1.0, 1.0, 0.07]
+pos = [1.0, 1.0, 0.00]
 rpy = [0, 0, 0]
 vel = [0, 0, 0]
 ang_vel = [0, 0, 0]
@@ -84,7 +84,7 @@ ang_vel = [0, 0, 0]
 [env.randomization.drone_pos]
 type = "uniform" # Everything that can be used as a distribution in numpy.random
 # Kwargs that are permissable in the np random function
-low = [-0.1, -0.1, 0.0]
+low = [-0.1, -0.1, 0.01]
 high = [0.1, 0.1, 0.02]
 
 [env.randomization.drone_rpy]
@@ -104,15 +104,15 @@ high = [0.000001, 0.000001, 0.000001]
 
 [env.randomization.gate_pos]
 type = "uniform"
-low = [-0.10, -0.10, -0.1]
-high = [0.10, 0.10, 0.1]
+low = [-0.05, -0.05, -0.1]
+high = [0.05, 0.05, 0.1]
 
 [env.randomization.gate_rpy]
 type = "uniform"
-low = [0.0, 0.0, -0.1]
-high = [0.0, 0.0, 0.1]
+low = [0.0, 0.0, -0.05]
+high = [0.0, 0.0, 0.05]
 
 [env.randomization.obstacle_pos]
 type = "uniform"
-low = [-0.10, -0.10, -0.05]
-high = [0.10, 0.10, 0.05]
+low = [-0.05, -0.05, -0.05]
+high = [0.05, 0.05, 0.05]

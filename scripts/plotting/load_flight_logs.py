@@ -33,7 +33,7 @@ state_units = [*['$m$']*3,
 input_labels = ['$\\dot{F}_1$', '$\\dot{F}_2$', '$\\dot{F}_3$', '$\\dot{F}_4$']
 input_units = [*['$\\frac{N}{s}$']*4]
 
-flight_data = np.load("output/logs/diffusion_run.npz", allow_pickle=True)
+flight_data = np.load("output/logs/mpc.npz", allow_pickle=True)
 
 n_actions = flight_data['n_actions']
 offset = flight_data['offset']
@@ -71,7 +71,7 @@ else:
     actions = flight_data['horizon_actions']
 
 actions = actions[:, :, offset:offset+n_actions].swapaxes(1, 2).reshape((-1, 13, 1), order='C')
-timesteps = np.linspace(start=0, stop=len(actions)/FREQ * n_actions, num=len(actions))
+timesteps = np.linspace(start=0, stop=len(actions)/FREQ, num=len(actions))
 fig, axs = plt.subplots(actions.shape[1], sharex=True, figsize=(20, 15))
 fig.suptitle(f'Actions')
 for i, ax in enumerate(axs):
