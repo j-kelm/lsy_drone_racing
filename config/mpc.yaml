@@ -3,7 +3,7 @@ controller: mpc
 n_actions: 2
 n_initial_actions: 16  # only used for buffered
 offset: 2
-wait_time_ratio: 1.0  # only used for async
+wait_time_ratio: 1.5  # only used for async
 logs: true
 logging_path: "output/logs/mpc.npz"
 
@@ -21,7 +21,7 @@ mpc:
   ]
 
   r: [
-    5.0e-1, 5.0e-1, 5.0e-1, 5.0e-1,
+    15.0e-1, 15.0e-1, 15.0e-1, 15.0e-1, # 5.0e-1, 5.0e-1, 5.0e-1, 5.0e-1,
   ]
 
   soft_penalty: 5.0e+2
