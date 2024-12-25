@@ -15,8 +15,8 @@ mpc:
   q: [
     15.0, 15.0, 15.0,
     0.0, 0.0, 0.0,
-    0.005, 0.005, 0.00,
-    2.0e-1, 2.0e-1, 1.0e-3,
+    0.0025, 0.0025, 0.00,
+    10.0e-2, 10.0e-2, 1.0e-3, # 2.0e-1, 2.0e-1, 1.0e-3,
     0.001, 0.001, 0.001, 0.001,
   ]
 
@@ -26,7 +26,7 @@ mpc:
 
   soft_penalty: 5.0e+2
   horizon_sec: 0.8
-  gate_prioritization: 3.0
+  gate_prioritization: 4.0
   max_iter: 5 # 2
   max_wall_time: 0.7
 
@@ -40,7 +40,7 @@ mpc:
     max_tilt: 80  # deg
 
   planner:
-    speed: 1.0  # m/s nominal
+    speed: 1.5  # m/s nominal
     gate_time_const: 0.2
 
   model:
