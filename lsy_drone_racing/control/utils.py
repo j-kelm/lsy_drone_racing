@@ -2,11 +2,10 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial.transform import Rotation as R
 
-def obs_from_dict(obs: dict) -> npt.NDArray:
+def state_from_dict(obs: dict) -> npt.NDArray:
     return np.concatenate([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
 
 def np_rot_x(phi):
-
     c, s = np.cos(phi), np.sin(phi)
     return np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
 

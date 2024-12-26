@@ -87,7 +87,6 @@ class Controller(BaseController):
         # wait for first actions to be computed
         self.ctrl.wait_tasks()
 
-
     def compute_control(
         self, obs: dict, info: dict | None = None
     ) -> npt.NDArray[np.floating]:
@@ -141,8 +140,8 @@ class Controller(BaseController):
         # self.async_ctrl.join(timeout=2)
         pass
 
-    def reset(self):
+    def episode_reset(self):
         print('[MAIN] Joining worker...')
-        self.ctrl.close()
         self.ctrl.join()
+        self.ctrl.close()
         print('[MAIN] Worker joined.')

@@ -39,7 +39,7 @@ from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 from lsy_drone_racing.control.mpc.mpc_utils import outputs_for_actions
 
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
-from lsy_drone_racing.control.utils import obs_from_dict
+from lsy_drone_racing.control.utils import state_from_dict
 
 
 class HorizonMPC:
@@ -76,7 +76,7 @@ class HorizonMPC:
 
 
     def compute_horizon(self, obs: dict, info: dict) -> npt.NDArray[np.floating]:
-        obs = obs_from_dict(obs)
+        obs = state_from_dict(obs)
 
         info['reference'] = self.planner.ref
         info['gate_prox'] = self.planner.gate_prox

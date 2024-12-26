@@ -38,7 +38,7 @@ import hydra
 import dill
 from lsy_drone_racing.control.diffusion.base_workspace import BaseWorkspace
 from lsy_drone_racing.control.diffusion.pytorch_util import dict_apply
-from lsy_drone_racing.control.utils import to_local_obs, to_global_action, obs_from_dict
+from lsy_drone_racing.control.utils import to_local_obs, to_global_action, state_from_dict
 
 
 class HorizonDiffusion:
@@ -135,7 +135,7 @@ class HorizonDiffusion:
 
         end_t = time.perf_counter()
         if self.logs:
-            self.results_dict['horizon_states'].append(obs_from_dict(obs)[:, None])
+            self.results_dict['horizon_states'].append(state_from_dict(obs)[:, None])
             self.results_dict['horizon_actions'].append(actions)
             self.results_dict['horizon_samples'].append(samples)
             self.results_dict['t_wall'].append(end_t - start_t)
@@ -164,8 +164,6 @@ class HorizonDiffusion:
         np_action_dict = dict_apply(action_dict,
                                     lambda x: x.detach().to('cpu').numpy())
 
-        # handle latency_steps, we discard the first n_latency_steps actions
-        # to simulate latency
         actions = np_action_dict['action'].swapaxes(1, 2)
         return actions  # (B, S, T)
 
