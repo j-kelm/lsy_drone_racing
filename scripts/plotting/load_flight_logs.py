@@ -91,7 +91,7 @@ fig.suptitle(f'Solution Times')
 for i, ax in enumerate(axs):
     ax.set_title('$t_{sol}$')
     ax.set_ylabel('$ms$', rotation=0)
-    ax.plot(timesteps, timings, color='g', label=None if i else 'MPC')
+    ax.plot(timesteps[1:], timings[1:], color='g', label=None if i else 'MPC')
 
 axs[-1].set_xlabel('s')
 fig.legend(loc='lower right')
