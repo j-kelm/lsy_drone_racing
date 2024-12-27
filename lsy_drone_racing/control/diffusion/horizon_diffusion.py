@@ -61,6 +61,7 @@ class HorizonDiffusion:
 
         self.n_actions = config['n_actions']
         self.offset = config['offset']
+        self.samples = config['diffusion']['samples']
 
         self.device = torch.device(config.diffusion.device)
         self.logs = True
@@ -92,11 +93,13 @@ class HorizonDiffusion:
 
         if 'run_id' in initial_info:
             torch.manual_seed(initial_info['run_id'])
+        else:
+            torch.manual_seed(123456)
 
-        self.results_dict['seed'] = torch.seed()
+        self.results_dict['seed'] = torch.random.initial_seed()
+        print(f"Seed: {self.results_dict['seed']}")
 
-
-    def compute_horizon(self, obs: dict, info: dict, samples=100) -> npt.NDArray[np.floating]:
+    def compute_horizon(self, obs: dict, info: dict, samples=1) -> npt.NDArray[np.floating]:
         # start timer
         start_t = time.perf_counter()
 
@@ -114,14 +117,14 @@ class HorizonDiffusion:
         samples = self.sample_actions(state, samples)
         samples = to_global_action(samples, obs['rpy'], obs['pos'])
 
-        # TODO: Find action most similar to last action
+        # # # TODO: Find action most similar to last action
         if len(self.results_dict['horizon_actions']):
             differences = samples[:, :, :self.n_actions] - self.results_dict['horizon_actions'][-1][:, self.offset:self.offset+self.n_actions]
 
             # normalize differences
             differences_max = differences.max(axis=0)
             differences_min = differences.min(axis=0)
-            differences_scaled = (differences - differences_min)/(differences_max - differences_min + np.full_like(differences_min, 1.0e-8))
+            differences_scaled = (differences - differences_min)/(differences_max - differences_min + 1.0e-8)
             differences_norm = np.linalg.norm(differences_scaled, axis=(1,2))
 
             closest_index = np.argmin(differences_norm)
@@ -129,8 +132,8 @@ class HorizonDiffusion:
         else:
             actions = samples[0]
 
-        # actions = samples[0]
 
+        # actions = samples[0]
 
 
         end_t = time.perf_counter()
