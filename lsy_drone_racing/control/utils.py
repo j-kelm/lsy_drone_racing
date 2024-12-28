@@ -141,6 +141,33 @@ def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, ta
 
     return np.hstack([obs_states, target_gate, obstacles_pos_obs, gates_pos_obs, gates_rpy_obs])
 
+# def local_transformation(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate, use_so2=True):
+#     pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate = np.atleast_2d(pos, vel, rpy, ang_vel, obstacles_pos.T, gates_pos.T, gates_rpy.T, target_gate)
+#     snippet_length = pos.shape[0]
+
+#     ref_pos = np.zeros_like(pos)
+#     ref_rot = np.zeros_like(rpy)
+
+#     ref_pos[:, 0:3] = pos[:, 0:3]
+#     ref_rot[:, 2:3] = rpy[:, 2:3]
+
+#     local_obs = {
+#         'pos': pos[:, 2:],
+#         'vel': transform(vel[:, :, None], ref_rot).reshape((snippet_length, -1)),
+#         'rpy': rpy[:, 0:2],
+#         'ang_vel': ang_vel,
+#         'obstacles_pos': transform(obstacles_pos.T[None, :, :], ref_rot, ref_pos).reshape((snippet_length, -1)),
+#         'gates_pos': transform(gates_pos.T[None, :, :], ref_rot, ref_pos).reshape((snippet_length, -1)),
+#         'gates_rpy': transform(gates_rpy.T[None, :, :], ref_rot)[:, 2:3, :].reshape((snippet_length, -1)),
+#         'target_gate': target_gate,
+#     }
+
+#     if use_so2:
+#         local_obs['rpy'] = to_so2(local_obs['rpy'])
+#         local_obs['gates_rpy'] = to_so2(local_obs['gates_rpy'])
+
+#     return local_obs
+
 
 def to_local_action(actions, rpy, pos):
     use_so2 = True
