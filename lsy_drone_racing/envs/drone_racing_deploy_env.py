@@ -208,7 +208,7 @@ class DroneRacingDeployEnv(gymnasium.Env):
     def obs(self) -> dict:
         """Return the observation of the environment."""
         drone = self.vicon.drone_name
-        rpy = R.from_euler("xyz", self.vicon.rpy[drone]).as_euler("XYZ")  # self.vicon.rpy[drone]
+        rpy = self.vicon.rpy[drone]  # R.from_euler("xyz", self.vicon.rpy[drone]).as_euler("XYZ")  # self.vicon.rpy[drone]
         ang_vel = self.vicon.ang_vel[drone]  # R.from_euler("xyz", rpy).inv().apply(self.vicon.ang_vel[drone])
         obs = {
             "pos": self.vicon.pos[drone].astype(np.float32),
