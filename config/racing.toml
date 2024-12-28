@@ -10,7 +10,7 @@ config = "mpc.yaml"
 [deploy]
 ### Settings only relevant for deployment
 # Whether to check if gate and obstacle positions observed by vicon are within the limits defined down below.
-check_race_track = false
+check_race_track = true
 # Whether to check if the drone start position is within the limits specified down below.
 check_drone_start_pos = true
 # Lets you practice your controller without putting up gates & obstacles, assumes nominal positions given below.
@@ -109,8 +109,8 @@ high = [0.05, 0.05, 0.1]
 
 [env.randomization.gate_rpy]
 type = "uniform"
-low = [0.0, 0.0, -0.05]
-high = [0.0, 0.0, 0.05]
+low = [0.0, 0.0, -0.02]
+high = [0.0, 0.0, 0.02]
 
 [env.randomization.obstacle_pos]
 type = "uniform"
