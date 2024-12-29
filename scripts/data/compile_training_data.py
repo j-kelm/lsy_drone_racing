@@ -79,7 +79,7 @@ if __name__ == '__main__':
 
 
                                         init_states = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, states_for_obs]
-                                        horizon_outputs = np.array(snippet['y_horizons'])[:MAX_SNIPPET_LENGTH, :, N_LATENCY_STEPS:PREDICTION_HORIZON]
+                                        horizon_outputs = np.array(snippet['y_horizons'])[:MAX_SNIPPET_LENGTH, outputs_for_actions, N_LATENCY_STEPS:PREDICTION_HORIZON]
                                         positions = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, pos_i]
                                         vels = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, vel_i]
                                         rpys = np.array(snippet['initial_states'])[:MAX_SNIPPET_LENGTH, rpy_i]
@@ -111,7 +111,7 @@ if __name__ == '__main__':
                                                           snippet_length, axis=0)
 
                                         obs.append(np.hstack([init_states, gate_index, track]))
-                                        actions.append(horizon_outputs[:, outputs_for_actions, :])
+                                        actions.append(horizon_outputs)
 
     assert len(obs) == len(actions) == len(local_obs) == len(local_actions)
 
