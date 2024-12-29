@@ -323,18 +323,13 @@ class MPC:
         self.x_prev = x_val
         self.u_prev = u_val
 
-        y = np.array(self.model.g_func(x=self.x_prev[:, 1:], # TODO: Check if this 1 is actually a good idea
-                                       u=self.u_prev)['g'])
+        # TODO: Check if this 1 is actually a good idea
 
-        # Take the first action from the solved action sequence.
-        if u_val.ndim > 1:
-            actions = np.array(u_val)
-            states = np.array(x_val)
-            outputs = np.array(y)
-        else:
-            actions = np.array(u_val)
-            states = np.array(x_val)
-            outputs = np.array(y)
+        y = np.array(self.model.g_func(x=self.x_prev[:, 1:], u=self.u_prev)['g'])
+
+        actions = np.array(u_val)
+        states = np.array(x_val)
+        outputs = np.array(y)
 
         end_t = time.perf_counter()
 
@@ -351,9 +346,6 @@ class MPC:
             self.results_dict['solution_found'].append(stats['success'])
             self.results_dict['iter_count'].append(stats['iter_count'])
             self.results_dict['obj'].append(stats['iterations']['obj'][-1])
-
-
-        # print(f"Logging MPC took {(time.perf_counter() - end_t) * 1000:.2f} ms")
 
         return {'actions': actions, 'states': states, 'outputs': outputs}
 
