@@ -46,7 +46,9 @@ def transform(points, orientations, origins=None):
     return: (N, 3, M)
     """
 
-    assert(len(points) == len(orientations) or len(points) == 1)
+    assert len(points) == len(orientations) or len(points) == 1
+    assert points.shape[1] == origins.shape[1] == orientations.shape[1] == 3
+
     if origins is None:
         origins = np.zeros_like(orientations)
     else:
@@ -73,7 +75,8 @@ def deform(points, orientations, origins=None):
     return: (N, 3, M)
     """
 
-    assert(len(points) == len(orientations) or len(points) == 1)
+    assert len(points) == len(orientations) or len(points) == 1
+    assert points.shape[1] == origins.shape[1] == orientations.shape[1] == 3
     if origins is None:
         origins = np.zeros_like(orientations)
     else:
@@ -112,13 +115,17 @@ def from_so2(sc):
     Returns:
         The corresponding angle in radians
     """
+    assert sc.shape[1] == 2
+
     angle = np.arctan2(sc[:, 0:1, :], sc[:, 1:2, :])
     return angle
 
-def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate):
-    use_so2 = True
-
+def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate, use_so2=True):
     pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate = np.atleast_2d(pos, vel, rpy, ang_vel, obstacles_pos.T, gates_pos.T, gates_rpy.T, target_gate)
+
+    assert pos.shape == vel.shape == rpy.shape == ang_vel.shape
+    assert gates_pos.shape == gates_rpy.shape
+
     snippet_length = pos.shape[0]
 
     ref_pos = np.zeros_like(pos)
@@ -128,7 +135,6 @@ def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, ta
     ref_rot[:, 2:3] = rpy[:, 2:3]
 
     vels_obs = transform(vel[:, :, None], ref_rot).reshape((snippet_length, -1))
-
     obstacles_pos_obs = transform(obstacles_pos.T[None, :, :], ref_rot, ref_pos).reshape((snippet_length, -1))
     gates_pos_obs = transform(gates_pos.T[None, :, :], ref_rot, ref_pos).reshape((snippet_length, -1))
     gates_rpy_obs = transform(gates_rpy.T[None, :, :], ref_rot)[:, 2:3, :].reshape((snippet_length, -1))
@@ -143,6 +149,10 @@ def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, ta
 
 # def local_transformation(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate, use_so2=True):
 #     pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate = np.atleast_2d(pos, vel, rpy, ang_vel, obstacles_pos.T, gates_pos.T, gates_rpy.T, target_gate)
+
+#     assert pos.shape == vel.shape == rpy.shape == ang_vel.shape
+#     assert gates_pos.shape == gates_rpy.shape
+
 #     snippet_length = pos.shape[0]
 
 #     ref_pos = np.zeros_like(pos)
@@ -169,9 +179,12 @@ def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, ta
 #     return local_obs
 
 
-def to_local_action(actions, rpy, pos):
-    use_so2 = True
+def to_local_action(actions, rpy, pos, use_so2=True):
     actions, rpy, pos = np.atleast_2d(actions, rpy, pos)
+
+    assert actions.shape[1] == 13
+    assert rpy.shape[1] == 3
+    assert rpy.shape == pos.shape
 
     ref_pos = np.zeros_like(pos)
     ref_rot = np.zeros_like(rpy)
@@ -190,10 +203,12 @@ def to_local_action(actions, rpy, pos):
     else:
         return np.concatenate([pos_des, vel_des, acc_des, yaw_des, body_rates_des], axis=1)
 
-def to_global_action(actions, rpy, pos):
-    use_so2 = True
+def to_global_action(actions, rpy, pos, use_so2=True):
     actions = np.atleast_3d(actions.T).T
     rpy, pos = np.atleast_2d(rpy, pos)
+
+    assert actions.shape[1] == 14 if use_so2 else 13
+    assert rpy.shape == pos.shape
 
     ref_pos = np.zeros_like(pos)
     ref_rot = np.zeros_like(rpy)
