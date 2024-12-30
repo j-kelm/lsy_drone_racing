@@ -3,8 +3,6 @@ from matplotlib import pyplot as plt
 
 from lsy_drone_racing.control.mpc.mpc_utils import outputs_for_actions
 
-FREQ = 50
-
 action_labels = ['$x$', '$y$', '$z$',
                  '$v_x$', '$v_y$', '$v_z$',
                  '$a_x$', '$a_y$', '$a_z$',
@@ -33,7 +31,9 @@ state_units = [*['$m$']*3,
 input_labels = ['$\\dot{F}_1$', '$\\dot{F}_2$', '$\\dot{F}_3$', '$\\dot{F}_4$']
 input_units = [*['$\\frac{N}{s}$']*4]
 
-flight_data = np.load("output/logs/mpc.npz", allow_pickle=True)
+flight_data = np.load("output/logs/diff_01.npz", allow_pickle=True)
+
+FREQ = 50 if 'env_freq' not in flight_data else flight_data['env_freq']
 
 n_actions = flight_data['n_actions'] if 'n_actions' in flight_data else 1
 offset = flight_data['offset'] if 'offset' in flight_data else 0
@@ -83,19 +83,22 @@ axs[-1].set_xlabel('s')
 fig.legend(loc='lower right')
 
 # plot timings
-if 't_wall' in flight_data:
-    timings = flight_data['t_wall'] * 1000
-    timesteps = np.linspace(start=0, stop=len(states)/FREQ * n_actions, num=len(states))
-
-    fig, axs = plt.subplots(2, sharex=True, figsize=(20, 15))
+if 't_wall' in flight_data or 't_solver' in flight_data:
+    fig, ax = plt.subplots(figsize=(20, 15))
     fig.suptitle(f'Solution Times')
-    for i, ax in enumerate(axs):
-        ax.set_title('$t_{sol}$')
-        ax.set_ylabel('$ms$', rotation=0)
-        ax.plot(timesteps[1:], timings[1:], color='g', label=None if i else 'MPC')
-
-    axs[-1].set_xlabel('s')
+    ax.set_xlabel('s')
+    ax.set_ylabel('$ms$', rotation=0)
     fig.legend(loc='lower right')
+
+    timesteps = np.linspace(start=0, stop=len(states)/FREQ * n_actions, num=len(states))
+    
+    if 't_wall' in flight_data:
+        timings = flight_data['t_wall'] * 1000
+        ax.plot(timesteps[1:-1], timings[1:-1], color='b', label=None if i else 'total')
+    
+    if 't_solver' in flight_data:
+        timings = flight_data['t_solver'] * 1000
+        ax.plot(timesteps[1:-1], timings[1:-1], color='r', label=None if i else 'solver')
 
 plt.show()
 

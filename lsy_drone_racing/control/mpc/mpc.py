@@ -324,7 +324,6 @@ class MPC:
         self.u_prev = u_val
 
         # TODO: Check if this 1 is actually a good idea
-
         y = np.array(self.model.g_func(x=self.x_prev[:, 1:], u=self.u_prev)['g'])
 
         actions = np.array(u_val)

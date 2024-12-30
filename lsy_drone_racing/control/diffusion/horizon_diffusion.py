@@ -61,14 +61,19 @@ class HorizonDiffusion:
 
         self.n_actions = config['n_actions']
         self.offset = config['offset']
-        self.samples = config['diffusion']['samples']
+        self.n_samples = config['diffusion']['n_samples']
 
         self.device = torch.device(config.diffusion.device)
         self.logs = True
         self.results_dict = {'horizon_states': [],
                              'horizon_actions': [],
                              't_wall': [],
+                             't_solver': [],
                              'horizon_samples': [],
+                             'gates_pos': initial_obs['gates_pos'],
+                             'gates_rpy': initial_obs['gates_rpy'],
+                             'obstacles_pos': initial_obs['obstacles_pos'],
+                             'env_freq': initial_info['env_freq'],
                              }
 
         checkpoint = 'models/diffusion/latest.ckpt'
@@ -77,7 +82,7 @@ class HorizonDiffusion:
         # load checkpoint
         payload = torch.load(open(checkpoint, 'rb'), pickle_module=dill)
         cfg = payload['cfg']
-        cfg['policy']['num_inference_steps'] = 5
+        cfg['policy']['num_inference_steps'] = config['diffusion']['n_inference_steps']
         cls = hydra.utils.get_class(cfg._target_)
         workspace = cls(cfg, output_dir=output_dir)
         workspace: BaseWorkspace
@@ -94,12 +99,12 @@ class HorizonDiffusion:
         if 'run_id' in initial_info:
             torch.manual_seed(initial_info['run_id'])
         else:
-            torch.manual_seed(123456)
+            torch.manual_seed(config['diffusion']['seed'])
 
         self.results_dict['seed'] = torch.random.initial_seed()
         print(f"Seed: {self.results_dict['seed']}")
 
-    def compute_horizon(self, obs: dict, info: dict, samples=1) -> npt.NDArray[np.floating]:
+    def compute_horizon(self, obs: dict, info: dict) -> npt.NDArray[np.floating]:
         # start timer
         start_t = time.perf_counter()
 
@@ -113,12 +118,15 @@ class HorizonDiffusion:
                              gates_rpy=obs['gates_rpy'].T,
                              target_gate=obs['target_gate'],
                              )
+        
+        start_solve_t = time.perf_counter()
+        samples = self.sample_actions(state, self.n_samples)
+        end_solve_t = time.perf_counter()
 
-        samples = self.sample_actions(state, samples)
         samples = to_global_action(samples, obs['rpy'], obs['pos'])
 
-        # # # TODO: Find action most similar to last action
-        if len(self.results_dict['horizon_actions']):
+        # TODO: Find action most similar to last action
+        if len(self.results_dict['horizon_actions']) and self.n_samples > 1:
             differences = samples[:, :, :self.n_actions] - self.results_dict['horizon_actions'][-1][:, self.offset:self.offset+self.n_actions]
 
             # normalize differences
@@ -132,21 +140,18 @@ class HorizonDiffusion:
         else:
             actions = samples[0]
 
-
-        # actions = samples[0]
-
-
         end_t = time.perf_counter()
         if self.logs:
             self.results_dict['horizon_states'].append(state_from_dict(obs)[:, None])
             self.results_dict['horizon_actions'].append(actions)
             self.results_dict['horizon_samples'].append(samples)
             self.results_dict['t_wall'].append(end_t - start_t)
+            self.results_dict['t_solver'].append(end_solve_t - start_solve_t)
 
         return actions
 
-    def sample_actions(self, obs, samples=1):
-        state = np.tile(obs, (samples, 1, 1))
+    def sample_actions(self, obs, n_samples=1):
+        state = np.tile(obs, (n_samples, 1, 1))
 
         # create obs dict
         np_obs_dict = {

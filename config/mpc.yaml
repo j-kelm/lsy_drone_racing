@@ -1,27 +1,28 @@
-controller: mpc
-
+controller: diffusion
 n_actions: 2
-n_initial_actions: 16  # only used for buffered
 offset: 2
-wait_time_ratio: 1.5  # only used for async
+n_initial_actions: 16  # only used for buffered
+wait_time_ratio: 0.75  # only used for async
 logs: true
-logging_path: "output/logs/mpc.npz"
+logging_path: "output/logs/diff_01.npz"
 
 diffusion:
-  inference_steps: 10  # DDIM
+  n_inference_steps: 5  # DDIM
   device: "cuda:0"
+  seed: 421
+  n_samples: 100
 
 mpc:
   q: [
     15.0, 15.0, 15.0,
     0.0, 0.0, 0.0,
     0.0025, 0.0025, 0.00,
-    10.0e-2, 10.0e-2, 1.0e-3, # 2.0e-1, 2.0e-1, 1.0e-3,
+    10.0e-2, 10.0e-2, 1.0e-3,
     0.001, 0.001, 0.001, 0.001,
   ]
 
   r: [
-    15.0e-1, 15.0e-1, 15.0e-1, 15.0e-1, # 5.0e-1, 5.0e-1, 5.0e-1, 5.0e-1,
+    15.0e-1, 15.0e-1, 15.0e-1, 15.0e-1,
   ]
 
   soft_penalty: 5.0e+2
@@ -40,7 +41,7 @@ mpc:
     max_tilt: 80  # deg
 
   planner:
-    speed: 1.5  # m/s nominal
+    speed: 2.0  # m/s nominal
     gate_time_const: 0.2
 
   model:

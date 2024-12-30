@@ -75,6 +75,38 @@ class HorizonMPC:
                     p.addUserDebugLine(self.planner.ref[0:3, i], self.planner.ref[0:3, i+10], lineColorRGB=[1,0,0])
 
 
+        # x = np.array([0, 0, 1,
+        #               0, 0, 0, 
+        #               0, 0, 0,
+        #               0, 0, 0,
+        #               0.09, 0.09, 0.08, 0.08,
+        #               ])
+        # u = np.zeros(4)
+
+        # xf = np.array(self.unwrapped.dynamics_func(x0=x, p=u)['xf'])
+
+        # print(f'pos: {xf[0:3].flatten()}')
+        # print(f'vel: {xf[3:6].flatten()}')
+        # print(f'ang: {xf[6:9].flatten()}')
+        # print(f'rate: {xf[9:12].flatten()}')
+        # print('-------------------------------------')
+
+        # x = np.array([0, 0, 1,
+        #               0, 0, 0, 
+        #               0, 0, np.pi/2,
+        #               0, 0, 0,
+        #               0.09, 0.09, 0.08, 0.08,
+        #               ])
+
+        # xf = np.array(self.unwrapped.dynamics_func(x0=x, p=u)['xf'])
+
+        # print(f'pos: {xf[0:3].flatten()}')
+        # print(f'vel: {xf[3:6].flatten()}')
+        # print(f'ang: {xf[6:9].flatten()}')
+        # print(f'rate: {xf[9:12].flatten()}')
+        # raise RuntimeError('I want to quit :(')
+
+
     def compute_horizon(self, obs: dict, info: dict) -> npt.NDArray[np.floating]:
         obs = state_from_dict(obs)
 
