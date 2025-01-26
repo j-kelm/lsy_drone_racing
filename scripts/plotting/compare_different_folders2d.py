@@ -1,9 +1,31 @@
+""" Plotting script for the thesis
+
+This script creates most plots for the thesis and saves them. It is a plotting script made in a rush,
+so it is a little messy. I am sorry.
+"""
+
+
 import os
 import matplotlib as mpl
+from matplotlib.ticker import FormatStrFormatter
+import numpy as np
 
-from lsy_drone_racing.utils.plotting import *
+subfolders = [
+    ("mpc_a=2_i=5max", "MPC (actions: 2, iters: $\leq 5$)", "MPC (a:2,i:$\leq5$)"),
+    ("fast", "MPC (fast)", "MPC (fast)"),
+    # ("mpc_a=2_i=5", "MPC (actions: 2, iters: 5)", "MPC (a:2,i:5)"),
+    # ("diff_a=2_s=1_i=10", "Diffusion policy (actions: 2, iters: 10, samples: 1)", "Diff (a:2,i:10,s:1)"),
+    # ("diff_a=2_s=100_i=5", "Diffusion policy (actions: 2, iters: 5, samples: 100)", "Diff (a:2,i:5,s:100)"),
+    # ("diff_a=1_s=25_i=5", "Diffusion policy (actions: 1, iters: 5, samples: 25)", "Diff (a:1,i:5,s:25)"),
+    # ("diff_a=1_s=1_i=5", "Diffusion policy (actions: 1, iters: 5, samples: 1)", "Diff (a:1,i:5,s:1)"),
+    # ("diff_a=1_s=1_i=2", "Diffusion policy (actions: 1, iters: 2, samples: 1)", "Diff (a:1,i:2,s:1)"),
 
-folder = "output/logs/diff/"
+    # ("diff_a=2_i=10_s=1007", "Diffusion policy (actions: 1, iters: 10, samples: 1007)", "Diff (a:1,i:10,s:1007)"),
+    # ("diff_a=2_s=1_i=5", "Diffusion policy (actions: 2, samples: 1, iters: 5)"), # maybe do not use
+]
+
+name = "all"
+base_folder = "output/logs/mm/"
 SAVE = True
 
 def figsize(scale):
@@ -30,48 +52,120 @@ if SAVE:
         "legend.fontsize": 8,               # Make the legend/label fonts a little smaller
         "xtick.labelsize": 8,
         "ytick.labelsize": 8,
-        "figure.figsize": figsize(1.0),     # default fig size of 0.9 textwidth
-        "pgf.preamble": r"\usepackage[utf8]{inputenc} \usepackage[T1]{fontenc}",    # use utf8 fonts becasue your computer can handle it :)
+        "figure.figsize": figsize(1.1),     # default fig size of 0.9 textwidth
+        "pgf.preamble": r"\usepackage[utf8]{inputenc} \usepackage[T1]{fontenc} \usepackage{siunitx}",    # use utf8 fonts becasue your computer can handle it :)
         }
     mpl.rcParams.update(pgf_with_latex)
     import matplotlib.pyplot as plt
 
-data_list = list()
-flight_data = None
-for file in os.listdir(folder):
-    if file.endswith(".npz"):
-        flight_data = np.load(os.path.join(folder, file), allow_pickle=True)
-        data_list.append(np.atleast_3d(flight_data['horizon_states']))
+state_dict = {}
+computing_dict = {}
+timing_dict = {}
+
+vel_min = np.inf
+vel_max = -np.inf
+
+# collect all data
+for (subfolder, label, _) in subfolders:
+    state_dict[subfolder] = list()
+    computing_dict[subfolder] = list()
+    timing_dict[subfolder] = list()
+
+    flight_data = None
+    path = os.path.join(base_folder, subfolder)
+    for file in os.listdir(path):
+        if file.endswith(".npz"):
+            flight_data = np.load(os.path.join(path, file), allow_pickle=True)
+            points = np.atleast_3d(flight_data['horizon_states'])
+            state_dict[subfolder].append(points[..., 0:6, 0].reshape(-1, 6))
+
+            if len(flight_data['t_wall'][1:]) * 0.02 * flight_data['n_actions'] < 15.0:  # collision
+                computing_dict[subfolder].append(flight_data['t_wall'][1:] * 1000)  # remove first step as casadi compiles problem
+                timing_dict[subfolder].append(len(flight_data['t_wall'][1:]) * 0.02 * flight_data['n_actions']) # scale 50 Hz step to account for controller being called not every step, remove one step as last action from buffer is never used
+            else:
+                print(f"Dropped run from {label} because T={len(flight_data['t_wall'][1:]) * 0.02 * flight_data['n_actions']}")
+
+
+    state_dict[subfolder] = np.concatenate(state_dict[subfolder], axis=0)
+    computing_dict[subfolder] = np.concatenate(computing_dict[subfolder], axis=0)
+    timing_dict[subfolder] = np.array(timing_dict[subfolder])
+
+    vel = np.linalg.norm(state_dict[subfolder][:, 3:6], axis=1)
+    vel_min = min(vel_min, vel.min())
+    vel_max = max(vel_max, vel.max())
+
+fig, axes = plt.subplots(nrows=len(subfolders), ncols=1, sharex=True, figsize=figsize(1.1))
 
 cmap = mpl.colormaps['turbo']
-normalizer = mpl.colors.Normalize(0, 3.0)
-im = mpl.cm.ScalarMappable(norm=normalizer)
+normalizer = mpl.colors.Normalize(vel_min, vel_max)
+im = mpl.cm.ScalarMappable(cmap=cmap, norm=normalizer)
 
-fig = plt.figure(dpi=100)
-axes = fig.subplots(nrows=3, ncols=1, sharex=False)
-for ax in axes:
-    state_data = data_list.copy()
-    state_merged = data_list.copy()
-    # plot continuous lines
-    for i, episode in enumerate(state_data):
-        # ax.plot(-episode[:, 0, 0], episode[:, 1, 0], c='gray', alpha=0.25)
-        state_merged[i] = episode[..., 0:6, 0].reshape(-1, 6)
+for ax, (subfolder, label, _) in zip(axes, subfolders):
+    ax.add_patch(plt.Circle((1, 0), 0.12, color="gray", alpha=0.5))
+    ax.add_patch(plt.Circle((2, 0), 0.12, color="gray", alpha=0.5))
 
-    state_merged = np.concatenate(state_merged)
-    img = ax.scatter(-state_merged[:, 0], state_merged[:, 1], c=np.linalg.norm(state_merged[:, 3:6], axis=1), cmap=cmap, norm=normalizer,
-                     s=1)  # , alpha=0.5)
+    states = state_dict[subfolder]
+
+    img = ax.scatter(-states[:, 0] + 1, -states[:, 1] + 1, c=np.linalg.norm(states[:, 3:6], axis=1),
+                     cmap=cmap, norm=normalizer, s=1, rasterized=True)
+
     ax.set_aspect('equal', 'box')
-    ax.set_title("MPC")
+    ax.set_yticks([-0.1, 0.0, 0.1])
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f m'))
+    ax.set_title(label)
+ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f m'))
 
-cbar = fig.colorbar(img, ax=axes, location='right')
-cbar.ax.set_ylabel(state_groups[1][2], rotation=0)
-#fig.tight_layout()
+cbar = fig.colorbar(im, ax=axes, location='right')
+# cbar.ax.set_ylabel(state_groups[1][2], rotation=0)
+cbar.ax.yaxis.set_major_formatter(FormatStrFormatter(r'\SI{%.1f}{\meter\per\second}'))
+# fig.tight_layout()
 
 if SAVE:
-    plt.savefig('{}.pgf'.format("plot"), bbox_inches='tight')
-    plt.savefig('{}.pdf'.format("plot"), bbox_inches='tight')
+    fig.savefig('output/plots/{}.pgf'.format(name), dpi=300, bbox_inches='tight')
+    fig.savefig('output/plots/{}.pdf'.format(name), dpi=300, bbox_inches='tight')
+
+fig = plt.figure()
+ax = fig.subplots()
+parts = ax.violinplot(computing_dict.values(), showmeans=True, showextrema=True, showmedians=False)
+for i, pc in enumerate(parts['bodies']):
+    if i < 2:
+        pc.set_facecolor('blue')
+    else:
+        pc.set_facecolor('green')
+    # pc.set_edgecolor('blue')
+    #pc.set_alpha(0.5)
+parts["cmeans"].set_edgecolor(['blue', 'blue', 'green', 'green', 'green', 'green', 'green'])
+parts["cmins"].set_edgecolor("black")
+parts["cmins"].set_alpha(0.3)
+parts["cmaxes"].set_edgecolor("black")
+parts["cmaxes"].set_alpha(0.3)
+parts["cbars"].set_edgecolor("black")
+parts["cbars"].set_alpha(0.3)
+ax.set_xticks([1, 2, 3, 4, 5, 6, 7], labels=[subfolder[2] for subfolder in subfolders], rotation=45, ha='right', rotation_mode='anchor')
+ax.set_ylabel("Computation time")
+ax.yaxis.set_major_formatter(FormatStrFormatter('%g ms'))
+ax.axhline(40.0, linestyle="--", color='gray', alpha=0.25)
+ax.axhline(20.0, linestyle="--", color='gray', alpha=0.25)
+
+if SAVE:
+    fig.savefig('output/plots/{}.pgf'.format("compute_time"), dpi=300, bbox_inches='tight')
+    fig.savefig('output/plots/{}.pdf'.format("compute_time"), dpi=300, bbox_inches='tight')
+
+fig = plt.figure()
+ax = fig.subplots()
+parts = ax.boxplot(timing_dict.values())
+ax.set_ylabel("Track time")
+ax.set_xticks([1, 2, 3, 4, 5, 6, 7], labels=[subfolder[2] for subfolder in subfolders], rotation=45, ha='right', rotation_mode='anchor')
+ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f s'))
+ax.axhline(3.08, linestyle="--", color='gray', alpha=0.25)  # 3.08 is the closest control step for the planned gate center point
+
+if SAVE:
+    fig.savefig('output/plots/{}.pgf'.format("track_time"), dpi=300, bbox_inches='tight')
+    fig.savefig('output/plots/{}.pdf'.format("track_time"), dpi=300, bbox_inches='tight')
+# show plot
 else:
     plt.show()
+
 
 ## MPC
 # horizon_inputs: (T, 4, H)

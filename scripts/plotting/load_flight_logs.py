@@ -1,7 +1,7 @@
 from lsy_drone_racing.control.mpc.mpc_utils import outputs_for_actions
 from lsy_drone_racing.utils.plotting import *
 
-flight_data = np.load("output/logs/mpc.npz", allow_pickle=True)
+flight_data = np.load("output/logs/mm/diff_a=2_s=100_i=5/diff_01.npz", allow_pickle=True)
 
 FREQ = 50 if 'env_freq' not in flight_data else flight_data['env_freq']
 
@@ -15,7 +15,7 @@ if states.shape[1] == 15:
     state_groups.append(('Thrust', (12, 13, 14, 15), '$N$'))
 
 plot_groups(states, timesteps, state_groups, state_labels, "States")
-plot_trajectories([states,], state_groups)
+plot_trajectories3d([states,], state_groups)
 
 # plot inputs (if possible)
 if 'horizon_inputs' in flight_data:

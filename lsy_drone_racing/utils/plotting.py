@@ -2,34 +2,35 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 action_labels = ['$x$', '$y$', '$z$',
-                 '$v_x$', '$v_y$', '$v_z$',
-                 '$a_x$', '$a_y$', '$a_z$',
+                 '$\dot{x}$', '$\dot{y}$', '$\dot{z}$',
+                 '$\ddot{x}$', '$\ddot{y}$', '$\ddot{z}$',
                  '$\\psi$',
                  '$p$', '$q$', '$r$']
 action_groups = [('Position', (0, 1, 2), '$m$'),
                  ('Velocity', (3, 4, 5), '$\\frac{m}{s}$'),
                  ('Acceleration', (6, 7, 8), '$\\frac{m}{s^2}$'),
                  ('Yaw', (9,), 'rad'),
-                 ('Rates', (10, 11, 12), '$\\frac{rad}{s}$')]
+                 ('Rate', (10, 11, 12), '$\\frac{rad}{s}$')]
 
 state_labels = ['$x$', '$y$', '$z$',
-                '$v_x$', '$v_y$', '$v_z$',
+                '$\dot{x}$', '$\dot{y}$', '$\dot{z}$',
                 '$\\phi$', '$\\theta$', '$\\psi$',
                 '$p$', '$q$', '$r$',
                 '$F_1$', '$F_2$', '$F_2$', '$F_4$',]
 state_groups = [('Position', (0, 1, 2), '$m$'),
                 ('Velocity', (3, 4, 5), '$\\frac{m}{s}$'),
-                ('Orientation', (6, 7, 8), 'rad'),
-                ('Rates', (9, 10, 11), '$\\frac{rad}{s}$'),]
+                ('Attitude', (6, 7, 8), 'rad'),
+                ('Rate', (9, 10, 11), '$\\frac{rad}{s}$'),]
 
 input_labels = ['$\\dot{F}_1$', '$\\dot{F}_2$', '$\\dot{F}_3$', '$\\dot{F}_4$']
 input_groups = [('Thrust Change', (0, 1, 2, 3), '$\\frac{N}{s}$'),]
 
-def plot_groups(data, timesteps, index_groups, labels, title):
+def plot_groups(data, timesteps, index_groups, labels, title, save=False):
     # plot states
     fig, axs = plt.subplots(len(index_groups), sharex=True, figsize=(20, 15), squeeze=False)
     axs = axs.squeeze(1)
-    fig.suptitle(title)
+    if not save:
+        fig.suptitle(title)
 
     for ax, (group_label, index_group, group_units) in zip(axs, index_groups):
         ax.set_title(group_label)
