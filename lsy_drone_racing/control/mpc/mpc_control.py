@@ -7,6 +7,9 @@ from lsy_drone_racing.control.mpc.mpc import MPC
 from lsy_drone_racing.control.mpc.model import DeltaModel as Model
 from lsy_drone_racing.control.mpc.constraints import obstacle_constraints, gate_constraints, to_rbf_potential
 
+import matplotlib as mpl
+from matplotlib.ticker import FormatStrFormatter
+
 
 class MPCControl:
     def __init__(self, initial_info: dict, initial_obs: dict):
@@ -49,6 +52,63 @@ class MPCControl:
             ellipsoid_constraints += gate_constraints(gate_pos, gate_rpy[2], r=constraint_config['gate_r'], s=1.75)  # 1.6
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
+
+        ## testing only
+        # def figsize(scale, height=1.0):
+        #     fig_width_pt = 418.25368  # Get this from LaTeX using \the\textwidth
+        #     inches_per_pt = 1.0 / 72.27  # Convert pt to inch
+        #     golden_mean = (np.sqrt(5.0) - 1.0) / 2.0 * height  # Aesthetic ratio (you could change this) (I am)
+        #     fig_width = fig_width_pt * inches_per_pt * scale  # width in inches
+        #     fig_height = fig_width * golden_mean  # height in inches
+        #     fig_size = [fig_width, fig_height]
+        #     return fig_size
+        #
+        # mpl.use('pgf')
+        #
+        # pgf_with_latex = {  # setup matplotlib to use latex for output
+        #     "pgf.texsystem": "pdflatex",  # change this if using xetex or lautex
+        #     "text.usetex": True,  # use LaTeX to write all text
+        #     "font.family": "serif",
+        #     "font.serif": [],  # blank entries should cause plots to inherit fonts from the document
+        #     "font.sans-serif": [],
+        #     "font.monospace": [],
+        #     "axes.labelsize": 10,  # LaTeX default is 10pt font.
+        #     "font.size": 10,
+        #     "legend.fontsize": 8,  # Make the legend/label fonts a little smaller
+        #     "xtick.labelsize": 8,
+        #     "ytick.labelsize": 8,
+        #     "figure.figsize": figsize(1.1),  # default fig size of 0.9 textwidth
+        #     "pgf.preamble": r"\usepackage[utf8]{inputenc} \usepackage[T1]{fontenc} \usepackage{siunitx}",
+        #     # use utf8 fonts becasue your computer can handle it :)
+        # }
+        # mpl.rcParams.update(pgf_with_latex)
+        # import matplotlib.pyplot as plt
+        #
+        #
+        # f = to_rbf_potential(ellipsoid_constraints)
+        #
+        # x, y = np.meshgrid(np.linspace(2, -2, 400),
+        #                    np.linspace(0.5, 1.5, 100))
+        #
+        # z = np.empty_like(x)
+        # for i, (x_i, y_i) in enumerate(zip(x, y)):
+        #     for j, (x_j, y_j) in enumerate(zip(x_i, y_i)):
+        #         z[i, j] = f(np.array([x_j, y_j, 0.35])[:, None])
+        #
+        #
+        # fig, ax = plt.subplots()
+        # img = ax.contourf(-x + 1.5, -y + 1, z, 10, vmin=-0.5, vmax=1.1)
+        # ax.set_aspect('equal', 'box')
+        # ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f m'))
+        # ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f m'))
+        # cbar = fig.colorbar(img, fraction=0.015, pad=0.05)
+        # img.cmap.set_under('w')
+        # img.set_clim(0.0)
+        #
+        # fig.savefig('output/plots/{}.pgf'.format("potential_function"), dpi=300, bbox_inches='tight')
+        # fig.savefig('output/plots/{}.pdf'.format("potential_function"), dpi=300, bbox_inches='tight')
+
+
 
         self.ctrl = MPC(model=self.model,
                         horizon=int(mpc_config['horizon_sec'] * initial_info['env_freq']),
