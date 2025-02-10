@@ -11,14 +11,14 @@ from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 
 subfolders = [
-    ("mpc_a=2_i=5max", "MPC (actions: 2, iters: $\leq 5$)", "MPC (a:2,i:$\leq5$)"),
-    ("fast", "MPC (fast)", "MPC (fast)"),
-    # ("mpc_a=2_i=5", "MPC (actions: 2, iters: 5)", "MPC (a:2,i:5)"),
-    # ("diff_a=2_s=1_i=10", "Diffusion policy (actions: 2, iters: 10, samples: 1)", "Diff (a:2,i:10,s:1)"),
-    # ("diff_a=2_s=100_i=5", "Diffusion policy (actions: 2, iters: 5, samples: 100)", "Diff (a:2,i:5,s:100)"),
-    # ("diff_a=1_s=25_i=5", "Diffusion policy (actions: 1, iters: 5, samples: 25)", "Diff (a:1,i:5,s:25)"),
-    # ("diff_a=1_s=1_i=5", "Diffusion policy (actions: 1, iters: 5, samples: 1)", "Diff (a:1,i:5,s:1)"),
-    # ("diff_a=1_s=1_i=2", "Diffusion policy (actions: 1, iters: 2, samples: 1)", "Diff (a:1,i:2,s:1)"),
+    # ("mpc_a=2_i=5max", "MPC (actions: 2, iters: $\leq 5$)", "MPC (a:2,i:$\leq5$)"),
+    # ("fast", "MPC (fast)", "MPC (fast)"),
+    ("mpc_a=2_i=5", "MPC (actions: 2, iters: 5)", "MPC (a:2,i:5)"),
+    ("diff_a=2_s=1_i=10", "Diffusion policy (actions: 2, iters: 10, samples: 1)", "Diff (a:2,i:10,s:1)"),
+    ("diff_a=2_s=100_i=5", "Diffusion policy (actions: 2, iters: 5, samples: 100)", "Diff (a:2,i:5,s:100)"),
+    ("diff_a=1_s=25_i=5", "Diffusion policy (actions: 1, iters: 5, samples: 25)", "Diff (a:1,i:5,s:25)"),
+    ("diff_a=1_s=1_i=5", "Diffusion policy (actions: 1, iters: 5, samples: 1)", "Diff (a:1,i:5,s:1)"),
+    ("diff_a=1_s=1_i=2", "Diffusion policy (actions: 1, iters: 2, samples: 1)", "Diff (a:1,i:2,s:1)"),
 
     # ("diff_a=2_i=10_s=1007", "Diffusion policy (actions: 1, iters: 10, samples: 1007)", "Diff (a:1,i:10,s:1007)"),
     # ("diff_a=2_s=1_i=5", "Diffusion policy (actions: 2, samples: 1, iters: 5)"), # maybe do not use
@@ -28,10 +28,10 @@ name = "all"
 base_folder = "output/logs/mm/"
 SAVE = True
 
-def figsize(scale):
-    fig_width_pt = 418.25368                         # Get this from LaTeX using \the\textwidth
+def figsize(scale, height=1.0):
+    fig_width_pt = 418.25368                        # Get this from LaTeX using \the\textwidth
     inches_per_pt = 1.0/72.27                       # Convert pt to inch
-    golden_mean = (np.sqrt(5.0)-1.0)/2.0            # Aesthetic ratio (you could change this)
+    golden_mean = (np.sqrt(5.0)-1.0)/2.0 * height           # Aesthetic ratio (you could change this) (I am)
     fig_width = fig_width_pt*inches_per_pt*scale    # width in inches
     fig_height = fig_width*golden_mean              # height in inches
     fig_size = [fig_width,fig_height]
@@ -94,7 +94,7 @@ for (subfolder, label, _) in subfolders:
     vel_min = min(vel_min, vel.min())
     vel_max = max(vel_max, vel.max())
 
-fig, axes = plt.subplots(nrows=len(subfolders), ncols=1, sharex=True, figsize=figsize(1.1))
+fig, axes = plt.subplots(nrows=len(subfolders), ncols=1, sharex=True, figsize=figsize(1.1, 0.3*len(subfolders)))
 
 cmap = mpl.colormaps['turbo']
 normalizer = mpl.colors.Normalize(vel_min, vel_max)
@@ -128,20 +128,17 @@ fig = plt.figure()
 ax = fig.subplots()
 parts = ax.violinplot(computing_dict.values(), showmeans=True, showextrema=True, showmedians=False)
 for i, pc in enumerate(parts['bodies']):
-    if i < 2:
-        pc.set_facecolor('blue')
-    else:
-        pc.set_facecolor('green')
+    pc.set_facecolor('blue' if "MPC" in subfolders[i][1] else 'green')
     # pc.set_edgecolor('blue')
     #pc.set_alpha(0.5)
-parts["cmeans"].set_edgecolor(['blue', 'blue', 'green', 'green', 'green', 'green', 'green'])
+parts["cmeans"].set_edgecolor(['blue' if "MPC" in subfolder[1] else 'green' for subfolder in subfolders])
 parts["cmins"].set_edgecolor("black")
 parts["cmins"].set_alpha(0.3)
 parts["cmaxes"].set_edgecolor("black")
 parts["cmaxes"].set_alpha(0.3)
 parts["cbars"].set_edgecolor("black")
 parts["cbars"].set_alpha(0.3)
-ax.set_xticks([1, 2, 3, 4, 5, 6, 7], labels=[subfolder[2] for subfolder in subfolders], rotation=45, ha='right', rotation_mode='anchor')
+ax.set_xticks(range(1, len(subfolders)+1), labels=[subfolder[2] for subfolder in subfolders], rotation=45, ha='right', rotation_mode='anchor')
 ax.set_ylabel("Computation time")
 ax.yaxis.set_major_formatter(FormatStrFormatter('%g ms'))
 ax.axhline(40.0, linestyle="--", color='gray', alpha=0.25)
@@ -155,7 +152,7 @@ fig = plt.figure()
 ax = fig.subplots()
 parts = ax.boxplot(timing_dict.values())
 ax.set_ylabel("Track time")
-ax.set_xticks([1, 2, 3, 4, 5, 6, 7], labels=[subfolder[2] for subfolder in subfolders], rotation=45, ha='right', rotation_mode='anchor')
+ax.set_xticks(range(1, len(subfolders)+1), labels=[subfolder[2] for subfolder in subfolders], rotation=45, ha='right', rotation_mode='anchor')
 ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f s'))
 ax.axhline(3.08, linestyle="--", color='gray', alpha=0.25)  # 3.08 is the closest control step for the planned gate center point
 

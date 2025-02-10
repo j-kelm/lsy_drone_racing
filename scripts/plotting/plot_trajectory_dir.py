@@ -1,10 +1,15 @@
+""" I HATE PLOTS
+
+"""
+
 import os
+import numpy as np
 import matplotlib as mpl
+from matplotlib.ticker import FormatStrFormatter
 
-from lsy_drone_racing.utils.plotting import *
-
-folder = "output/logs/diff/"
-SAVE = False
+folder = "output/logs/racing"
+name = 'speed'
+SAVE = True
 
 data_list = list()
 flight_data = None
@@ -13,10 +18,10 @@ for file in os.listdir(folder):
         flight_data = np.load(os.path.join(folder, file), allow_pickle=True)
         data_list.append(np.atleast_3d(flight_data['horizon_states']))
 
-def figsize(scale):
-    fig_width_pt = 418.25368                         # Get this from LaTeX using \the\textwidth
+def figsize(scale, height=1.0):
+    fig_width_pt = 418.25368                        # Get this from LaTeX using \the\textwidth
     inches_per_pt = 1.0/72.27                       # Convert pt to inch
-    golden_mean = (np.sqrt(5.0)-1.0)/2.0            # Aesthetic ratio (you could change this)
+    golden_mean = (np.sqrt(5.0)-1.0)/2.0 * height           # Aesthetic ratio (you could change this) (I am)
     fig_width = fig_width_pt*inches_per_pt*scale    # width in inches
     fig_height = fig_width*golden_mean              # height in inches
     fig_size = [fig_width,fig_height]
@@ -37,17 +42,35 @@ if SAVE:
         "legend.fontsize": 8,               # Make the legend/label fonts a little smaller
         "xtick.labelsize": 8,
         "ytick.labelsize": 8,
-        "figure.figsize": figsize(0.9),     # default fig size of 0.9 textwidth
-        "pgf.preamble": r"\usepackage[utf8]{inputenc} \usepackage[T1]{fontenc}",    # use utf8 fonts becasue your computer can handle it :)
+        "figure.figsize": figsize(1.1, 1.0),     # default fig size of 0.9 textwidth
+        "pgf.preamble": r"\usepackage[utf8]{inputenc} \usepackage[T1]{fontenc} \usepackage{siunitx}",    # use utf8 fonts becasue your computer can handle it :)
         }
     mpl.rcParams.update(pgf_with_latex)
     import matplotlib.pyplot as plt
 
-plot_trajectories2d(data_list, state_groups)
+fig = plt.figure()
+ax = plt.axes(projection="3d")
+
+# plot continuous lines
+for i, episode in enumerate(data_list):
+    # ax.plot(episode[:, 0, 0], episode[:, 1, 0], episode[:, 2, 0], c='gray', alpha=0.5)
+
+    data_list[i] = episode[..., 0:6, 0].reshape(-1, 6)
+
+state_data = np.concatenate(data_list)
+
+img = ax.scatter(state_data[:, 0], state_data[:, 1], state_data[:, 2], c=np.linalg.norm(state_data[:, 3:6], axis=1),
+                 cmap='turbo', s=2.5, rasterized=True)  # , alpha=0.5)
+ax.set_aspect('equal', 'box')
+ax.view_init(15, 45, 0)
+ax.xaxis.set_major_locator(plt.MaxNLocator(4))
+cbar = fig.colorbar(img, fraction=0.015, pad=0.05)
+cbar.ax.yaxis.set_major_formatter(FormatStrFormatter(r'\SI{%.1f}{\meter\per\second}'))
+# fig.tight_layout()
 
 if SAVE:
-    plt.savefig('{}.pgf'.format("plot"), bbox_inches='tight')
-    plt.savefig('{}.pdf'.format("plot"), bbox_inches='tight')
+    plt.savefig('output/plots/trajectories/{}.pgf'.format(name), dpi=300, bbox_inches='tight')
+    plt.savefig('output/plots/trajectories/{}.pdf'.format(name), dpi=300, bbox_inches='tight')
 else:
     plt.show()
 

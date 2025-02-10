@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 
 action_labels = ['$x$', '$y$', '$z$',
@@ -43,21 +44,23 @@ def plot_groups(data, timesteps, index_groups, labels, title, save=False):
 
 
 def plot_trajectories3d(state_data, index_group):
-    fig = plt.figure(dpi=100)
+    fig = plt.figure()
     ax = plt.axes(projection="3d")
 
     # plot continuous lines
     for i, episode in enumerate(state_data):
-        ax.plot(episode[:, 0, 0], episode[:, 1, 0], episode[:, 2, 0], c='gray', alpha=0.5)
+        # ax.plot(episode[:, 0, 0], episode[:, 1, 0], episode[:, 2, 0], c='gray', alpha=0.5)
 
         state_data[i] = episode[..., 0:6, 0].reshape(-1, 6)
 
     state_data = np.concatenate(state_data)
 
-    img = ax.scatter(state_data[:, 0], state_data[:, 1], state_data[:, 2], c=np.linalg.norm(state_data[:, 3:6], axis=1), cmap='turbo', s=2.5)  # , alpha=0.5)
+    img = ax.scatter(state_data[:, 0], state_data[:, 1], state_data[:, 2], c=np.linalg.norm(state_data[:, 3:6], axis=1), cmap='turbo', s=2.5, rasterized=True)  # , alpha=0.5)
     ax.set_aspect('equal', 'box')
-    cbar = fig.colorbar(img)
-    cbar.ax.set_ylabel(index_group[1][2], rotation=0)
+    ax.view_init(15,45,0)
+    ax.xaxis.set_major_locator(plt.MaxNLocator(4))
+    cbar = fig.colorbar(img, fraction=0.015, pad=0.05)
+    cbar.ax.yaxis.set_major_formatter(FormatStrFormatter(r'\SI{%.1f}{\meter\per\second}'))
     fig.tight_layout()
 
     return fig, ax
