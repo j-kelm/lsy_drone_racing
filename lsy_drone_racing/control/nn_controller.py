@@ -1,28 +1,4 @@
-"""Write your control strategy.
-
-Then run:
-
-    $ python scripts/sim --config config/getting_started.yaml
-
-Tips:
-    Search for strings `INSTRUCTIONS:` and `REPLACE THIS (START)` in this file.
-
-    Change the code between the 5 blocks starting with
-        #########################
-        # REPLACE THIS (START) ##
-        #########################
-    and ending with
-        #########################
-        # REPLACE THIS (END) ####
-        #########################
-    with your own code.
-
-    They are in methods:
-        1) __init__
-        2) compute_control
-        3) step_learn (optional)
-        4) episode_learn (optional)
-
+"""Deprecated and not maintained, but included anyway for completeness.
 """
 
 from __future__ import annotations  # Python 3.10 type hints
@@ -31,13 +7,11 @@ import numpy as np
 import numpy.typing as npt
 
 import torch
-from wandb.cli.cli import local
 
 from lsy_drone_racing.control import BaseController
-from lsy_drone_racing.utils.utils import draw_segment_of_traj
 
 from lsy_drone_racing.control.nn.nn_model import NeuralNetwork
-from lsy_drone_racing.control.utils import to_local_obs, to_global_action, to_local_action
+from lsy_drone_racing.control.utils import to_local_obs, to_global_action
 
 
 class Controller(BaseController):

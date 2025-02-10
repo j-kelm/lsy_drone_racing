@@ -1,28 +1,4 @@
-"""Write your control strategy.
-
-Then run:
-
-    $ python scripts/sim --config config/getting_started.yaml
-
-Tips:
-    Search for strings `INSTRUCTIONS:` and `REPLACE THIS (START)` in this file.
-
-    Change the code between the 5 blocks starting with
-        #########################
-        # REPLACE THIS (START) ##
-        #########################
-    and ending with
-        #########################
-        # REPLACE THIS (END) ####
-        #########################
-    with your own code.
-
-    They are in methods:
-        1) __init__
-        2) compute_control
-        3) step_learn (optional)
-        4) episode_learn (optional)
-
+""" Asynchronous controller class that performs calculations in a separate process for both MPC and diffusion.
 """
 
 from __future__ import annotations  # Python 3.10 type hints
@@ -33,23 +9,21 @@ import numpy.typing as npt
 from munch import munchify
 import yaml
 
-import time
-
 from lsy_drone_racing.control import BaseController
 from lsy_drone_racing.control.control_process import ControlProcess
 import multiprocessing as mp
 
 
-class Controller(BaseController):
-    """Template controller class."""
+class AsyncController(BaseController):
+    """ Asynchronous controller class shared for MPC and diffusion.
+
+    This class implements a controller that spawns a control process for either MPC or diffusion to perform controller
+    computations off-process. The class loads a config to determine times to wait for control outputs and spawns a
+    process with diffusion or MPC controller depending on the value set in the config.
+    """
 
     def __init__(self, initial_obs: dict, initial_info: dict):
-        """Initialization of the controller.
-
-        INSTRUCTIONS:
-            The controller's constructor has access the initial state `initial_obs` and the a priori
-            infromation contained in dictionary `initial_info`. Use this method to initialize
-            constants, counters, pre-plan trajectories, etc.
+        """Initialization of the controller and spawning control process.
 
         Args:
             initial_obs: The initial observation of the environment's state. See the environment's
@@ -90,19 +64,18 @@ class Controller(BaseController):
     def compute_control(
         self, obs: dict, info: dict | None = None
     ) -> npt.NDArray[np.floating]:
-        """Compute the next desired position and orientation of the drone.
+        """Compute the next desired state of the drone.
 
-        INSTRUCTIONS:
-            Re-implement this method to return the target pose to be sent from Crazyswarm to the
-            Crazyflie using the `cmdFullState` call.
+        Store the current observation in a queue and fetch the current action from the control process.
+        In case the control process did not finish computation yet, wait for an amount according to config.
 
         Args:
-            obs: The current observation of the environment. See the environment's observation space
-                for details.
+            obs: The current observation of the environment. See the environment's observation space for details.
             info: Optional additional information as a dictionary.
 
         Returns:
-            The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
+            The drone state command [x, y, z, vx, vy, vz, ax, ay, az, yaw, prate, qrate, rrate] as a numpy
+            array.
         """
         info['step'] = self._tick
 
@@ -131,13 +104,6 @@ class Controller(BaseController):
         self._tick += 1
 
     def episode_callback(self):
-        # use this function to plot episode data instead of learning
-        # file_path = "output/states.npz"
-        # self.save_episode(file_path)
-        # history = np.load(file_path)
-        # plot_3d(history)
-
-        # self.async_ctrl.join(timeout=2)
         pass
 
     def episode_reset(self):

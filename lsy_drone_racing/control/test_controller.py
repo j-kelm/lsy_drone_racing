@@ -1,12 +1,4 @@
-"""Controller that follows a pre-defined trajectory.
-
-It uses a cubic spline interpolation to generate a smooth trajectory through a series of waypoints.
-At each time step, the controller computes the next desired position by evaluating the spline.
-
-.. note::
-    The waypoints are hard-coded in the controller for demonstration purposes. In practice, you
-    would need to generate the splines adaptively based on the track layout, and recompute the
-    trajectory if you receive updated gate and obstacle poses.
+"""Controller used for testing different coordinate frames in actions and observations.
 """
 
 from __future__ import annotations  # Python 3.10 type hints
@@ -24,7 +16,7 @@ from lsy_drone_racing.control.utils import state_from_dict
 
 
 class TrajectoryController(BaseController):
-    """Controller that follows a pre-defined trajectory."""
+    """Controller that executes a predetermined sequence of actions to test coordinate frames in actions and observations."""
 
     def __init__(self, initial_obs: dict[str, NDArray[np.floating]], initial_info: dict):
         """Initialization of the controller.
@@ -58,8 +50,6 @@ class TrajectoryController(BaseController):
             The drone state [x, y, z, vx, vy, vz, ax, ay, az, yaw, rrate, prate, yrate] as a numpy
                 array.
         """
-
-
 
         if self._tick < 100:
             action = [1, 1, 0.2,

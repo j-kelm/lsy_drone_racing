@@ -1,28 +1,4 @@
-"""Write your control strategy.
-
-Then run:
-
-    $ python scripts/sim --config config/getting_started.yaml
-
-Tips:
-    Search for strings `INSTRUCTIONS:` and `REPLACE THIS (START)` in this file.
-
-    Change the code between the 5 blocks starting with
-        #########################
-        # REPLACE THIS (START) ##
-        #########################
-    and ending with
-        #########################
-        # REPLACE THIS (END) ####
-        #########################
-    with your own code.
-
-    They are in methods:
-        1) __init__
-        2) compute_control
-        3) step_learn (optional)
-        4) episode_learn (optional)
-
+"""Receding horizon controller using a diffusion policy for computing action sequences.
 """
 
 from __future__ import annotations  # Python 3.10 type hints
@@ -36,26 +12,23 @@ import torch
 
 import hydra
 import dill
-from lsy_drone_racing.control.diffusion.base_workspace import BaseWorkspace
-from lsy_drone_racing.control.diffusion.pytorch_util import dict_apply
+from diffusion_policy.workspace.base_workspace import BaseWorkspace
+from diffusion_policy.common.pytorch_util import dict_apply
 from lsy_drone_racing.control.utils import to_local_obs, to_global_action, state_from_dict
 
 
 class HorizonDiffusion:
-    """Template controller class."""
+    """Class to compute action sequences using a diffusion policy."""
 
     def __init__(self, initial_obs: dict, initial_info: dict):
         """Initialization of the controller.
 
-        INSTRUCTIONS:
-            The controller's constructor has access the initial state `initial_obs` and the a priori
-            infromation contained in dictionary `initial_info`. Use this method to initialize
-            constants, counters, pre-plan trajectories, etc.
+        Prepare results dict and load model. Set seed of diffusion policy.
 
         Args:
             initial_obs: The initial observation of the environment's state. See the environment's
                 observation space for details.
-            initial_info: Additional environment information from the reset.
+            initial_info: Augmented environment information also containing the controller config.
         """
         config = initial_info['config']
 
@@ -105,6 +78,13 @@ class HorizonDiffusion:
         print(f"Seed: {self.results_dict['seed']}")
 
     def compute_horizon(self, obs: dict, info: dict) -> npt.NDArray[np.floating]:
+        """Compute action sequence from diffusion policy.
+
+        :param obs: Observation dict.
+        :param info: Augmented info dict containing config.
+        :return: Action sequence.
+        """
+
         # start timer
         start_t = time.perf_counter()
 
@@ -125,7 +105,7 @@ class HorizonDiffusion:
 
         samples = to_global_action(samples, obs['rpy'], obs['pos'])
 
-        # TODO: Find action most similar to last action
+        # Find action most similar to last action
         if len(self.results_dict['horizon_actions']) and self.n_samples > 1:
             differences = samples[:, :, :self.n_actions] - self.results_dict['horizon_actions'][-1][:, self.offset:self.offset+self.n_actions]
 
@@ -151,6 +131,13 @@ class HorizonDiffusion:
         return actions
 
     def sample_actions(self, obs, n_samples=1):
+        """ Batch sample from the diffusion policy.
+
+        :param obs: Observation dict.
+        :param n_samples: Size of action batch to be sampled.
+        :return: Action sequences (n_samples, State, Timestep)
+        """
+
         state = np.tile(obs, (n_samples, 1, 1))
 
         # create obs dict

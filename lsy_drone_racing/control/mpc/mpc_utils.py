@@ -1,5 +1,4 @@
 """General MPC utility functions.
-
 """
 import casadi as cs
 
@@ -7,7 +6,7 @@ states_for_obs = range(12)
 outputs_for_actions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14]
 
 def rk_discrete(f, n, m, dt):
-    """Runge Kutta discretization for the function.
+    """Runge Kutta discretization for the function - taken and not modified from safe_control_gym.
 
     Args:
         f (casadi function): Function to discretize.

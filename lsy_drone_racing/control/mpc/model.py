@@ -1,3 +1,5 @@
+"""CasADi definition of the 12DoF quadrotor model, adapted from safe_control_gym.
+"""
 
 import numpy as np
 import casadi as cs

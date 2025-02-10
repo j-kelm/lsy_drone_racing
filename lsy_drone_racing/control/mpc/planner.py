@@ -1,3 +1,5 @@
+"""Minimum snap planner to get a reference for the tracking MPC"""
+
 import numpy as np
 from scipy import interpolate
 import minsnap_trajectories as ms
@@ -9,20 +11,32 @@ class MinsnapPlanner:
                  speed=1.5,
                  gate_index=0,
                  gate_time_constant=0.25):
+        """Compute the minsnap reference based on the list of gates.
 
+        The segment times are allocated based on the Euclidean distance between gate centers and the reference velocity.
+        The computed results are saved as attributes of the object.
+
+        :param initial_info: Initial info about the environment.
+        :param initial_obs: Initial observation containing gate information.
+        :param speed: Reference velocity for segment time allocation.
+        :param gate_index: Gate index to start planning from, useful for re-planning.
+        :param gate_time_constant: Time constant defining temporal proximity to gates.
+        """
         self.CTRL_FREQ = initial_info["env_freq"]
         self.gates_pos = initial_obs['gates_pos']
         self.gates_rpy = initial_obs['gates_rpy']
 
-        self.waypoints = list()  # without helper waypoints
-        time = 0.0
+        self.waypoints = list()
 
+        # set first waypoint to drone state
+        time = 0.0
         self.waypoints.append(ms.Waypoint(
             time=time,
             position=initial_obs['pos'],
             velocity=initial_obs['vel'],
         ))
 
+        # append waypoints for each gate
         for gate_pos, gate_rpy in zip(self.gates_pos[gate_index:], self.gates_rpy[gate_index:]):
             time += self.get_time_from_last_waypoint(gate_pos, self.waypoints, speed)
             self.waypoints.append(ms.Waypoint(
@@ -30,6 +44,7 @@ class MinsnapPlanner:
                 position=gate_pos,
             ))
 
+        # append final waypoint behind last gate
         theta = self.gates_rpy[-1][2]
         rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
         offset = np.zeros(3)
@@ -77,7 +92,7 @@ class MinsnapPlanner:
 
         # assert max(self.ref[2, :]) < 2.5, "Drone must stay below the ceiling"
         # assert min(self.ref[2, :]) > 0.0, "Drone must stay above the ground"
-        self.ref[2] = np.maximum(0.07, self.ref[2])
+        self.ref[2] = np.maximum(0.05, self.ref[2])  # clamp reference to always stay above ground
 
 
     @staticmethod

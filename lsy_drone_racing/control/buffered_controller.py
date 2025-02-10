@@ -1,28 +1,4 @@
-"""Write your control strategy.
-
-Then run:
-
-    $ python scripts/sim --config config/getting_started.yaml
-
-Tips:
-    Search for strings `INSTRUCTIONS:` and `REPLACE THIS (START)` in this file.
-
-    Change the code between the 5 blocks starting with
-        #########################
-        # REPLACE THIS (START) ##
-        #########################
-    and ending with
-        #########################
-        # REPLACE THIS (END) ####
-        #########################
-    with your own code.
-
-    They are in methods:
-        1) __init__
-        2) compute_control
-        3) step_learn (optional)
-        4) episode_learn (optional)
-
+""" Buffered controller class that periodically executes MPC or diffusion controller and buffers actions.
 """
 
 from __future__ import annotations
@@ -39,11 +15,23 @@ from lsy_drone_racing.control.mpc.horizon_mpc import HorizonMPC
 
 class BufferedController(BaseController):
     """
-    Provide a receding horizon controller using a buffered output
+    Provide a receding horizon controller using a buffered output.
 
-
+    The controller buffers the computed action sequence and applies multiple actions from that sequence before
+    recomputing a new action sequence. Computations run in the same process. This controller can also be used for
+    vanilla receding horizon control if only the first action from the buffer is applied. Select type of controller
+    in config.
     """
+
     def __init__(self, initial_obs: dict[str, npt.NDArray[np.floating]], initial_info: dict):
+        """Initialization of the controller.
+
+        Args:
+            initial_obs: The initial observation of the environment's state. See the environment's
+                observation space for details.
+            initial_info: Additional environment information from the reset.
+        """
+
         super().__init__(initial_obs=initial_obs, initial_info=initial_info)
 
         config_path = "config/mpc.yaml"
@@ -76,8 +64,21 @@ class BufferedController(BaseController):
         self, obs: dict, info: dict | None = None
 
     ) -> npt.NDArray[np.floating]:
+        """Compute the next desired state of the drone.
+
+        Compute a new action sequence if the action buffer is empty, otherwise fetch next action from action buffer.
+
+        Args:
+            obs: The current observation of the environment. See the environment's observation space for details.
+            info: Optional additional information as a dictionary.
+
+        Returns:
+            The drone state command [x, y, z, vx, vy, vz, ax, ay, az, yaw, prate, qrate, rrate] as a numpy
+            array.
+        """
+
         if not len(self.action_buffer):
-            obs['ang_vel'] *= np.pi / 180  # TODO: fix
+            # obs['ang_vel'] *= np.pi / 180  # TODO: fix
             info['step'] = self._tick
             actions = self.ctrl.compute_horizon(obs, info).squeeze()
             self.action_buffer += [action for action in actions[:, self.offset:self.n_actions+self.offset].T]

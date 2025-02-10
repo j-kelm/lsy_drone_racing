@@ -1,3 +1,6 @@
+"""CasADi MPC implementation, originally taken from safe_control_gym but heavily adapted.
+"""
+
 import time
 from copy import deepcopy
 from termcolor import colored
@@ -15,35 +18,31 @@ class MPC:
                  q_mpc: list = [5],
                  r_mpc: list = [0.01],
                  warmstart: bool = True,
+                 horizon_skip: int = 1,
                  soft_penalty: float = 1e3,
                  constraint_tol: float = 1e-6,
-                 # runner args
-                 # shared/base args
-                 output_dir: str = 'results/temp',
-                 use_gpu: bool = False,
-                 seed: int = 0,
                  solver: str = 'ipopt',
                  max_iter: int = 1000,
                  max_wall_time: float = 1.0e+20,
-                 horizon_skip: int = 1,
                  logs: bool = True,
                  **kwargs
                  ):
 
-        """Creates task and controller.
+        """Initialize MPC controller.
 
         Args:
             model (Model): Instance for MPC model.
-            horizon (int): mpc planning horizon.
+            horizon (int): MPC planning horizon steps.
             q_mpc (list): diagonals of state cost weight.
             r_mpc (list): diagonals of input/action cost weight.
             warmstart (bool): if to initialize from previous iteration.
-            soft_constraints (bool): Formulate the constraints as soft constraints.
+            horizon_skip (int): amount of time steps to shift the solution when warm starting
+            soft_penalty (float): Soft constraints penalty factor.
             constraint_tol (float): Tolerance to add the constraint as sometimes solvers are not exact.
-            output_dir (str): output directory to write logs and results.
-            additional_constraints (list): List of additional constraints
-            use_gpu (bool): False (use cpu) True (use cuda).
-            seed (int): random seed.
+            solver (str): Solver to use, only tested with ipopt.
+            max_iter (int): Maximum solver iterations.
+            max_wall_time (float): Maximal solver wall time.
+            logs (bool): if logs should be saved in results dict.
         """
 
         for k, v in locals().items():
@@ -233,8 +232,7 @@ class MPC:
             info (dict): Current info containing the reference, warmstart info, weighted cost matrices
             force_warm_start (bool): Force use of reference/provided guess for warm-starting
 
-        Returns:
-            action (ndarray): Input/action to the task/env.
+        Returns: Dict containing predicted actions, states and outputs.
         """
         start_t = time.perf_counter()
 
@@ -319,11 +317,9 @@ class MPC:
                 x_val, u_val = opti.debug.value(x_var), opti.debug.value(u_var)
                 input_slack_val, state_slack_val = opti.debug.value(input_slack), opti.debug.value(state_slack)
 
-
         self.x_prev = x_val
         self.u_prev = u_val
 
-        # TODO: Check if this 1 is actually a good idea
         y = np.array(self.model.g_func(x=self.x_prev[:, 1:], u=self.u_prev)['g'])
 
         actions = np.array(u_val)

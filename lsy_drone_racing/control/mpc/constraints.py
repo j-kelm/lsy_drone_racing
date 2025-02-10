@@ -1,3 +1,6 @@
+"""MPC constraints helper functions.
+"""
+
 import numpy as np
 import casadi as cs
 import pybullet as p
@@ -10,6 +13,7 @@ from scipy.spatial.transform import Rotation as R
 def draw_elliptic_sphere(
         pos, scale, quat=(0, 0, 0, 1), rgbaColor=(1, 0, 0, 0.2)
 ):
+    """Visualize an ellipsoid in pybullet."""
     visual_shape_id = p.createVisualShape(
         shapeType=p.GEOM_MESH,
         fileName="sphere_smooth.obj",
@@ -26,6 +30,13 @@ def draw_elliptic_sphere(
     )
 
 def vblock_constraint(obstacle_center, length, r=0.15):
+    """Ellipsoid constraint for vertical ellipsoids.
+
+    :param obstacle_center: Coordinates of ellipsoid center.
+    :param length: Length of ellipsoid.
+    :param r: Radius of ellipsoid.
+    :return: Function of the ellipsoid.
+    """
     def g(x):
         return ((x[0] - obstacle_center[0]) / r) ** 2 + ((x[1] - obstacle_center[1]) / r) ** 2 + (
             (2 * (x[2] - obstacle_center[2]) / length)) ** 2 # TODO: Change back to 4
@@ -36,6 +47,14 @@ def vblock_constraint(obstacle_center, length, r=0.15):
     return g
 
 def hblock_constraint(obstacle_center, width, yaw, r=0.15):
+    """Ellipsoid constraint for horizontal ellipsoids.
+
+        :param obstacle_center: Coordinates of ellipsoid center.
+        :param width: Width of the ellipsoid.
+        :param yaw: Rotation angle of the ellipsoid in radians.
+        :param r: Radius of ellipsoid.
+        :return: Function of the ellipsoid.
+    """
     def g(x):
         x_rel = np_rot_z(yaw) @ (x[0:3] - obstacle_center[:, None])
         return  (2*x_rel[0]/width)**2 + (x_rel[1]/r)**2 + (x_rel[2]/r)**2
@@ -47,6 +66,13 @@ def hblock_constraint(obstacle_center, width, yaw, r=0.15):
     return g
 
 def obstacle_constraints(obstacle_pos, r=0.15, s=1.5):
+    """Generate list of ellipsoid constraints required to model an obstacle.
+
+    :param obstacle_pos: Position of the obstacle (using lsy_drone_racing convention).
+    :param r: Radius of the obstacle.
+    :param s: Safety parameter to increase ellipsoid size.
+    :return: List of ellipsoid functions that model the provided obstacle.
+    """
     obstacle_center = np.zeros_like(obstacle_pos)
 
     obstacle_height = obstacle_pos[2] * s
@@ -55,6 +81,15 @@ def obstacle_constraints(obstacle_pos, r=0.15, s=1.5):
     return [vblock_constraint(obstacle_center, obstacle_height, r)]
 
 def gate_constraints(gate_pos, gate_yaw, r=0.15, s=1.75):
+    """Generate list of ellipsoid constraints required to model a gate.
+
+    :param gate_pos: Gate position.
+    :param gate_yaw: Gate rotation in radians.
+    :param r: Gate border radius.
+    :param s: Safety parameter to increase ellipsoid size.
+    :return: List of ellipsoid functions that model the provided gate.
+    """
+
     # Gate:
     # ----- <- 5
     # I   I <- 3/4
@@ -88,6 +123,7 @@ def rbf(x, sigma):
     return cs.exp(-x/sigma)
 
 def to_rbf_potential(constraints: list):
+    """Convert list of ellipsoid functions into a single potential function"""
     def g(x):
         res = -rbf(1, 0.25)
         for constraint in constraints:

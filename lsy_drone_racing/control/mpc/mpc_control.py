@@ -1,3 +1,6 @@
+"""Wrap the MPC formulation with constraints and take care of tracking thrusts
+"""
+
 from __future__ import annotations  # Python 3.10 type hints
 
 import numpy as np
@@ -7,24 +10,15 @@ from lsy_drone_racing.control.mpc.mpc import MPC
 from lsy_drone_racing.control.mpc.model import DeltaModel as Model
 from lsy_drone_racing.control.mpc.constraints import obstacle_constraints, gate_constraints, to_rbf_potential
 
-import matplotlib as mpl
-from matplotlib.ticker import FormatStrFormatter
-
 
 class MPCControl:
     def __init__(self, initial_info: dict, initial_obs: dict):
-        """Initialization of the controller.
-
-        INSTRUCTIONS:
-            The controller's constructor has access the initial state `initial_obs` and the a priori
-            information contained in dictionary `initial_info`. Use this method to initialize
-            constants, counters, pre-plan trajectories, etc.
+        """Initialize MPC and setup constraints
 
         Args:
             initial_obs: The initial observation of the environment's state. See the environment's
                 observation space for details.
-            initial_info: Additional environment information from the reset.
-            config: MPC configuration
+            initial_info: Augmented environment information also containing the controller config.
         """
         self.config = initial_info['config']
         mpc_config = self.config['mpc']
@@ -53,7 +47,9 @@ class MPCControl:
 
         self.model.state_constraints_soft += [to_rbf_potential(ellipsoid_constraints)]
 
-        ## testing only
+        ## testing only - plot potential function used by MPC constraints
+        # import matplotlib as mpl
+        # from matplotlib.ticker import FormatStrFormatter
         # def figsize(scale, height=1.0):
         #     fig_width_pt = 418.25368  # Get this from LaTeX using \the\textwidth
         #     inches_per_pt = 1.0 / 72.27  # Convert pt to inch
@@ -129,20 +125,17 @@ class MPCControl:
     def compute_control(
         self, state, ref, info: dict,
     ) -> npt.NDarray[np.floating]:
-        """Compute the next desired position and orientation of the drone.
+        """Compute the predicted actions, states and outputs based on the given state.
 
-        INSTRUCTIONS:
-            Re-implement this method to return the target pose to be sent from Crazyswarm to the
-            Crazyflie using the `cmdFullState` call.
+        Also vary Q depending on temporal gate proximity.
 
         Args:
-            state: The current observation of the environment. See the environment's observation space
-                for details.
-            ref: fullstate reference
+            state: The current state of the drone.
+            ref: Trajectory reference.
             info: Optional additional information as a dictionary.
 
         Returns:
-            The drone pose [x_des, y_des, z_des, yaw_des] as a numpy array.
+            Dict containing predicted actions, states and outputs.
         """
 
         state = np.concatenate([state, self.forces], axis=0)
@@ -169,6 +162,8 @@ class MPCControl:
 
     @staticmethod
     def to_horizon(series, step, horizon):
+        """Helper function to cut series to part within MPC horizon."""
+
         series = np.atleast_2d(series)
 
         start = step

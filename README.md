@@ -1,9 +1,4 @@
-# Autonomous Drone Racing Project Course
-<p align="center">
-  <img width="460" height="300" src="docs/img/banner.jpeg">
-</p>
-<sub><sup>AI generated image</sup></sub>
-
+# Master Thesis: Approximate MPC using Diffusion Models for Autonomous Drone Racing
 [![Python Version]][Python Version URL] [![Ruff Check]][Ruff Check URL] [![Documentation Status]][Documentation Status URL] [![Tests]][Tests URL]
 
 [Python Version]: https://img.shields.io/badge/python-3.8-blue.svg
@@ -45,6 +40,18 @@
       - [Settings](#settings)
       - [Launch](#launch)
 
+
+## Important Changes
+This repo is a fork of [lsy_drone_racing](https://github.com/utiasDSL/lsy_drone_racing) and requires the dependencies of said repository, in particular [pycffirmware](https://github.com/utiasDSL/pycffirmware/tree/drone_racing) - `drone_racing` branch.
+
+Furthermore, this repo uses files copied from [diffusion_policy](https://github.com/real-stanford/diffusion_policy) for training and deploying diffusion models. 
+
+See each repository for further details on the implementations and installation. The following instructions are taken from [lsy_drone_racing](https://github.com/utiasDSL/lsy_drone_racing) at the time the thesis was submitted and should match this codebase.
+
+### Project structure
+The files from [diffusion_policy](https://github.com/real-stanford/diffusion_policy) are in `/diffusion_policy`, except for `/train.py` used to train the diffusion policy. It should be possible to move the file in theory, but `hydra` is very picky about folder structure.
+
+Otherwise, this repo follows the structure of the two subrepos. Most additions are in `/lsy_drone_racing/control/`.
 
 ## Documentation
 To get you started with the drone racing project, you can head over to our [documentation page](https://lsy-drone-racing.readthedocs.io/en/latest/getting_started/general.html).

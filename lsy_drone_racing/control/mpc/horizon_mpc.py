@@ -1,28 +1,4 @@
-"""Write your control strategy.
-
-Then run:
-
-    $ python scripts/sim --config config/getting_started.yaml
-
-Tips:
-    Search for strings `INSTRUCTIONS:` and `REPLACE THIS (START)` in this file.
-
-    Change the code between the 5 blocks starting with
-        #########################
-        # REPLACE THIS (START) ##
-        #########################
-    and ending with
-        #########################
-        # REPLACE THIS (END) ####
-        #########################
-    with your own code.
-
-    They are in methods:
-        1) __init__
-        2) compute_control
-        3) step_learn (optional)
-        4) episode_learn (optional)
-
+"""Receding horizon controller using MPC for computing action sequences.
 """
 
 from __future__ import annotations  # Python 3.10 type hints
@@ -32,9 +8,6 @@ import numpy.typing as npt
 
 import pybullet as p
 
-from munch import munchify
-import yaml
-
 from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 from lsy_drone_racing.control.mpc.mpc_utils import outputs_for_actions
 
@@ -43,20 +16,17 @@ from lsy_drone_racing.control.utils import state_from_dict
 
 
 class HorizonMPC:
-    """Template controller class."""
+    """Class to compute action sequences using MPC."""
 
     def __init__(self, initial_obs: dict, initial_info: dict):
         """Initialization of the controller.
 
-        INSTRUCTIONS:
-            The controller's constructor has access the initial state `initial_obs` and the a priori
-            infromation contained in dictionary `initial_info`. Use this method to initialize
-            constants, counters, pre-plan trajectories, etc.
+        Plan reference trajectory using minsnap and initialize the MPC.
 
         Args:
             initial_obs: The initial observation of the environment's state. See the environment's
                 observation space for details.
-            initial_info: Additional environment information from the reset.
+            initial_info: Augmented environment information also containing the controller config.
         """
         config = initial_info['config']
 
@@ -66,7 +36,6 @@ class HorizonMPC:
                                       gate_time_constant=config.mpc.planner.gate_time_const,
                                       )
 
-
         self.mpc_ctrl = MPCControl(initial_info=initial_info,initial_obs=initial_obs)
 
         if p.isConnected():
@@ -75,39 +44,13 @@ class HorizonMPC:
                     p.addUserDebugLine(self.planner.ref[0:3, i], self.planner.ref[0:3, i+10], lineColorRGB=[1,0,0])
 
 
-        # x = np.array([0, 0, 1,
-        #               0, 0, 0, 
-        #               0, 0, 0,
-        #               0, 0, 0,
-        #               0.09, 0.09, 0.08, 0.08,
-        #               ])
-        # u = np.zeros(4)
-
-        # xf = np.array(self.unwrapped.dynamics_func(x0=x, p=u)['xf'])
-
-        # print(f'pos: {xf[0:3].flatten()}')
-        # print(f'vel: {xf[3:6].flatten()}')
-        # print(f'ang: {xf[6:9].flatten()}')
-        # print(f'rate: {xf[9:12].flatten()}')
-        # print('-------------------------------------')
-
-        # x = np.array([0, 0, 1,
-        #               0, 0, 0, 
-        #               0, 0, np.pi/2,
-        #               0, 0, 0,
-        #               0.09, 0.09, 0.08, 0.08,
-        #               ])
-
-        # xf = np.array(self.unwrapped.dynamics_func(x0=x, p=u)['xf'])
-
-        # print(f'pos: {xf[0:3].flatten()}')
-        # print(f'vel: {xf[3:6].flatten()}')
-        # print(f'ang: {xf[6:9].flatten()}')
-        # print(f'rate: {xf[9:12].flatten()}')
-        # raise RuntimeError('I want to quit :(')
-
-
     def compute_horizon(self, obs: dict, info: dict) -> npt.NDArray[np.floating]:
+        """Compute action sequence from the MPC.
+
+        :param obs: Observation dict.
+        :param info: Augmented info dict containing config.
+        :return: Action sequence.
+        """
         obs = state_from_dict(obs)
 
         info['reference'] = self.planner.ref

@@ -1,8 +1,15 @@
+"""Various general helper functions used in the controllers."""
+
 import numpy as np
 import numpy.typing as npt
 from scipy.spatial.transform import Rotation as R
 
 def state_from_dict(obs: dict) -> npt.NDArray:
+    """Convert an observation dict into a numpy ndarray
+
+    :param obs: Observation dict.
+    :return: ndarray containing observations from the dict.
+    """
     return np.concatenate([obs['pos'], obs['vel'], obs['rpy'], obs['ang_vel']])
 
 def np_rot_x(phi):
@@ -37,13 +44,14 @@ def np_rot_xyz(phi, theta, psi) -> np.ndarray:
 
 def transform(points, orientations, origins=None):
     """
-    transform n points into m coordinate systems
+    Transform n points into m coordinate systems.
 
-    points: (N, 3, M)
-    origins: (N, 3)
-    orientations: (N, 3)
+    Args:
+        points: 3D points to transform (N, 3, M)
+        origins: Origins of the new coordinate frames in the old frame (N, 3)
+        orientations: Orientations of the new coordinate frames in the old frame (N, 3)
 
-    return: (N, 3, M)
+    return: Transformed points (N, 3, M).
     """
 
     assert len(points) == len(orientations) or len(points) == 1
@@ -65,14 +73,14 @@ def transform(points, orientations, origins=None):
     return transformed
 
 def deform(points, orientations, origins=None):
-    """
-    transform n points into m coordinate systems
+    """Transform n points back from m coordinate systems.
 
-    points: (N, 3, M)
-    origins: (N, 3)
-    orientations: (N, 3)
+    Args:
+        points: 3D points to transform (N, 3, M)
+        origins: Origins of the new coordinate frames in the old frame (N, 3)
+        orientations: Orientations of the new coordinate frames in the old frame (N, 3)
 
-    return: (N, 3, M)
+    return: Transformed points (N, 3, M).
     """
 
     assert len(points) == len(orientations) or len(points) == 1
@@ -121,6 +129,8 @@ def from_so2(sc):
     return angle
 
 def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate, use_so2=True):
+    """ Transform track observations into feature space
+    """
     pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, target_gate = np.atleast_2d(pos, vel, rpy, ang_vel, obstacles_pos.T, gates_pos.T, gates_rpy.T, target_gate)
 
     assert pos.shape == vel.shape == rpy.shape == ang_vel.shape
@@ -180,6 +190,8 @@ def to_local_obs(pos, vel, rpy, ang_vel, obstacles_pos, gates_pos, gates_rpy, ta
 
 
 def to_local_action(actions, rpy, pos, use_so2=True):
+    """Transform action into feature space given the current state of the drone.
+    """
     actions, rpy, pos = np.atleast_2d(actions, rpy, pos)
 
     assert actions.shape[1] == 13
@@ -204,6 +216,8 @@ def to_local_action(actions, rpy, pos, use_so2=True):
         return np.concatenate([pos_des, vel_des, acc_des, yaw_des, body_rates_des], axis=1)
 
 def to_global_action(actions, rpy, pos, use_so2=True):
+    """Transform action from the feature space given the current state of the drone.
+    """
     actions = np.atleast_3d(actions.T).T
     rpy, pos = np.atleast_2d(rpy, pos)
 
