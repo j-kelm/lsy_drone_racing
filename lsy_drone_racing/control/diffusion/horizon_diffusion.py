@@ -30,6 +30,9 @@ class HorizonDiffusion:
                 observation space for details.
             initial_info: Augmented environment information also containing the controller config.
         """
+        checkpoint = 'models/diffusion/latest.ckpt'
+        output_dir = 'output/diffusion_eval_output'
+
         config = initial_info['config']
 
         self.n_actions = config['n_actions']
@@ -48,9 +51,6 @@ class HorizonDiffusion:
                              'obstacles_pos': initial_obs['obstacles_pos'],
                              'env_freq': initial_info['env_freq'],
                              }
-
-        checkpoint = 'models/diffusion/latest.ckpt'
-        output_dir = 'output/diffusion_eval_output'
 
         # load checkpoint
         payload = torch.load(open(checkpoint, 'rb'), pickle_module=dill)
