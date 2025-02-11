@@ -1,3 +1,6 @@
+"""Plot export script for the thesis that generates a 2D-view of actions within a dataset.
+"""
+
 import numpy as np
 from numpy.random import default_rng
 import matplotlib as mpl
@@ -37,7 +40,7 @@ pgf_with_latex = {                      # setup matplotlib to use latex for outp
 mpl.rcParams.update(pgf_with_latex)
 import matplotlib.pyplot as plt
 
-
+# select random samples from training data
 rng = default_rng(seed=45)
 numbers = rng.choice(len(outputs), size=min(250, len(outputs)), replace=False)
 

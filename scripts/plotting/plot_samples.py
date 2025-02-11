@@ -1,3 +1,6 @@
+"""Debugging script used for plotting the position component (3D) of all samples from a log file.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 

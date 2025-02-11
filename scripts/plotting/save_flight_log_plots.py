@@ -1,5 +1,4 @@
-""" Another messy plot export script that is used for all actions or states over the time
-
+""" Another messy plot export script that plots all states and actions of a single log file.
 """
 
 import numpy as np
@@ -10,9 +9,8 @@ from lsy_drone_racing.control.mpc.mpc_utils import outputs_for_actions
 from lsy_drone_racing.utils.plotting import state_groups, state_labels, action_groups, action_labels
 
 flight_data = np.load("output/logs/mm/diff_a=1_s=1_i=2/diff_01.npz", allow_pickle=True)
-# flight_data = np.load("output/logs/mm/mpc_a=2_i=5max/mpc_mm_100_01.npz", allow_pickle=True)
-
 name = "diff_a=1_s=25_rate"
+
 action_groups = [action_groups[4],]
 state_groups = [state_groups[3],]
 
@@ -44,7 +42,6 @@ pgf_with_latex = {                      # setup matplotlib to use latex for outp
     }
 mpl.rcParams.update(pgf_with_latex)
 import matplotlib.pyplot as plt
-
 
 FREQ = 50 if 'env_freq' not in flight_data else flight_data['env_freq']
 

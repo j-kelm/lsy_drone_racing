@@ -4,7 +4,6 @@ This script creates most plots for the thesis and saves them. It is a plotting s
 so it is a little messy. I am sorry.
 """
 
-
 import os
 import matplotlib as mpl
 from matplotlib.ticker import FormatStrFormatter

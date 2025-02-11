@@ -1,10 +1,10 @@
+"""Deprecated and not maintained script for debugging the diffusion policy."""
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 from lsy_drone_racing.control.utils import to_global_action
 from lsy_drone_racing.control.diffusion_controller import Controller
-
-
 
 if __name__ == "__main__":
     n_samples = 1

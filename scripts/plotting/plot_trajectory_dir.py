@@ -1,5 +1,4 @@
-""" I HATE PLOTS
-
+""" Plotting script used to plot 3D trajectories from log files and save them for thesis.
 """
 
 import os
@@ -7,9 +6,9 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib.ticker import FormatStrFormatter
 
-folder = "output/logs/racing"
-name = 'speed'
-SAVE = True
+folder = "output/logs/racing"  # folder to read all log files from
+name = 'speed'  # name of file to be saved
+SAVE = True  # if to save files instead of just plotting
 
 data_list = list()
 flight_data = None
@@ -51,10 +50,9 @@ if SAVE:
 fig = plt.figure()
 ax = plt.axes(projection="3d")
 
-# plot continuous lines
+# reshape data for scatter (and plot continuous lines if uncommented)
 for i, episode in enumerate(data_list):
     # ax.plot(episode[:, 0, 0], episode[:, 1, 0], episode[:, 2, 0], c='gray', alpha=0.5)
-
     data_list[i] = episode[..., 0:6, 0].reshape(-1, 6)
 
 state_data = np.concatenate(data_list)

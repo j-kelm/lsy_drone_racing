@@ -1,3 +1,5 @@
+"""Deprecated and not maintained script for debugging the diffusion policy."""
+
 import numpy as np
 import matplotlib.pyplot as plt
 
