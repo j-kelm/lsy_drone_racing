@@ -1,20 +1,27 @@
+"""Script for filtering and transforming hdf5 data to generate the training dataset in feature space.
+
+For best results, remove data after the last gate is passed.
+
+Note: If this script should exceed RAM for large data sets, implement with zarr instead of npz to not hold entire
+dataset in RAM and instead write piece by piece. Reducing float precision could also help.
+"""
+
 import h5py
 import numpy as np
 
 from lsy_drone_racing.control.mpc.mpc_utils import states_for_obs, outputs_for_actions
 from lsy_drone_racing.control.utils import to_local_obs, to_local_action
 
-hdf_path = "output/merged.hdf5"
-output_path = "output/training_data.npz"
+hdf_path = "output/mpc_data/merged.hdf5"
+output_path = "output/training_data/training_data.npz"
 
-
-LAST_GATE_INDEX = 0 # 0
-N_LATENCY_STEPS = 0 # 0
-PREDICTION_HORIZON = 8 + N_LATENCY_STEPS
-MAX_SNIPPET_LENGTH = 48
+LAST_GATE_INDEX = 0  # Index of the last gate to be passed in the training data, cuts everything after
+N_LATENCY_STEPS = 0  # Number of time steps to shift the actions
+PREDICTION_HORIZON = 8 + N_LATENCY_STEPS  # Length of action sequence contained in training data
+MAX_SNIPPET_LENGTH = 48  # Maximum length of rollouts considered, cuts everything above this length
 MAX_STATE_SLACK = 1e-1
-MAX_INPUT_SLACK = 1e10 # 1e-1
-MAX_OBJECTIVE = 1e10 # 5e3
+MAX_INPUT_SLACK = 1e10
+MAX_OBJECTIVE = 1e10
 
 pos_i = slice(0, 3)
 vel_i = slice(3, 6)

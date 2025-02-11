@@ -1,21 +1,15 @@
 # Master Thesis: Approximate MPC using Diffusion Models for Autonomous Drone Racing
-[![Python Version]][Python Version URL] [![Ruff Check]][Ruff Check URL] [![Documentation Status]][Documentation Status URL] [![Tests]][Tests URL]
+[![Python Version]][Python Version URL]
 
 [Python Version]: https://img.shields.io/badge/python-3.8-blue.svg
 [Python Version URL]: https://www.python.org
 
-[Ruff Check]: https://github.com/utiasDSL/lsy_drone_racing/actions/workflows/ruff.yml/badge.svg?style=flat-square
-[Ruff Check URL]: https://github.com/utiasDSL/lsy_drone_racing/actions/workflows/ruff.yml
-
-[Documentation Status]: https://readthedocs.org/projects/lsy-drone-racing/badge/?version=latest
-[Documentation Status URL]: https://lsy-drone-racing.readthedocs.io/en/latest/?badge=latest
-
-[Tests]: https://github.com/utiasDSL/lsy_drone_racing/actions/workflows/testing.yml/badge.svg
-[Tests URL]: https://github.com/utiasDSL/lsy_drone_racing/actions/workflows/testing.yml
-
 ## Table of Contents
 - [Autonomous Drone Racing Project Course](#autonomous-drone-racing-project-course)
   - [Table of Contents](#table-of-contents)
+  - [Important changes](#important-changes)
+    - [Project structure](#project-structure)
+    - [Additional information](#additional-information)
   - [Documentation](#documentation)
   - [Installation](#installation)
     - [Fork lsy\_drone\_racing](#fork-lsy_drone_racing)
@@ -41,7 +35,7 @@
       - [Launch](#launch)
 
 
-## Important Changes
+## Important changes
 This repo is a fork of [lsy_drone_racing](https://github.com/utiasDSL/lsy_drone_racing) and requires the dependencies of said repository, in particular [pycffirmware](https://github.com/utiasDSL/pycffirmware/tree/drone_racing) - `drone_racing` branch.
 
 Furthermore, this repo uses files copied from [diffusion_policy](https://github.com/real-stanford/diffusion_policy) for training and deploying diffusion models. 
@@ -52,6 +46,14 @@ See each repository for further details on the implementations and installation.
 The files from [diffusion_policy](https://github.com/real-stanford/diffusion_policy) are in `/diffusion_policy`, except for `/train.py` used to train the diffusion policy. It should be possible to move the file in theory, but `hydra` is very picky about folder structure.
 
 Otherwise, this repo follows the structure of the two subrepos. Most additions are in `/lsy_drone_racing/control/`.
+
+Scripts for generating training data are located in `/scripts/data`.
+
+### Additional information
+- There are further readmes in the folders specifying the file formats for e.g. training data
+- All files should be run using the `-O` interpreter option during deployment
+
+**_!Everything below this point is the default lsy_drone_racing README!_**
 
 ## Documentation
 To get you started with the drone racing project, you can head over to our [documentation page](https://lsy-drone-racing.readthedocs.io/en/latest/getting_started/general.html).

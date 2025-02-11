@@ -1,15 +1,23 @@
-import numpy as np
-import h5py
+"""This script is used to sample a single initial trajectory of the MPC through a specified track.
 
+The resulting file can be used in sample_points.py to generate training data along this initial trajectory.
+Multiple track layouts have not yet been implemented, but could be added here (or somewhere else that generates track
+.toml config files).
+"""
+
+import h5py
 from munch import munchify
-import yaml
+import numpy as np
 import toml
+import yaml
 
 from lsy_drone_racing.control.mpc.mpc_control import MPCControl
 from lsy_drone_racing.control.mpc.planner import MinsnapPlanner
 
 NUM_TRACKS = 1
-hdf_path = "output/mm.hdf5"
+hdf_path = "output/mpc_data/mm.hdf5"
+mpc_config_path = "config/generate.yaml"
+track_config_path = 'config/multi_modality.toml'
 
 def dict_to_group(root, name: str, data: dict):
     grp = root.create_group(name)
@@ -21,11 +29,10 @@ def dict_to_group(root, name: str, data: dict):
 
 
 if __name__ == "__main__":
-    path = "config/generate.yaml"
-    with open(path, "r") as file:
+    with open(mpc_config_path, "r") as file:
         config = munchify(yaml.safe_load(file))
 
-    with open('config/multi_modality.toml', "r") as file:
+    with open(track_config_path, "r") as file:
         track_config = munchify(toml.load(file))
 
     f = h5py.File(hdf_path, 'w', libver='latest')
